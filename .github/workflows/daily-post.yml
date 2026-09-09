@@ -1,0 +1,117 @@
+name: TechBangla - 2 Posts Daily
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+      timezone: 'Asia/Dhaka'
+    - cron: '17 21 * * *'
+      timezone: 'Asia/Dhaka'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: techbangla-daily-post
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build private runtime files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::error::Missing repository secret: GEMINI_API_KEY"
+            exit 1
+          fi
+          if [ -z "${GOOGLE_CREDENTIALS_JSON:-}" ]; then
+            echo "::error::Missing repository secret: GOOGLE_CREDENTIALS_JSON"
+            exit 1
+          fi
+          if [ -z "${GOOGLE_TOKEN_JSON:-}" ]; then
+            echo "::error::Missing repository secret: GOOGLE_TOKEN_JSON"
+            exit 1
+          fi
+
+          printf '%s' "$GOOGLE_CREDENTIALS_JSON" > credentials.json
+          printf '%s' "$GOOGLE_TOKEN_JSON" > token.json
+
+          cat > config.py <<'PY'
+          import json
+          import os
+
+          GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+          GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+
+          try:
+              _oauth = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON", "{}"))
+              _oauth = _oauth.get("installed") or _oauth.get("web") or {}
+              CLIENT_SECRET = _oauth.get("client_secret", "")
+          except Exception:
+              CLIENT_SECRET = ""
+          PY
+
+      - name: Use active free-tier Gemini model
+        shell: bash
+        run: |
+          for f in *.py; do
+            [ -f "$f" ] || continue
+            sed -i 's/gemini-2\.0-flash-lite/gemini-2.5-flash-lite/g' "$f"
+            sed -i 's/gemini-2\.0-flash/gemini-2.5-flash-lite/g' "$f"
+          done
+
+      - name: Publish one blog post
+        run: python main.py
+
+      - name: Remove private runtime files
+        if: always()
+        shell: bash
+        run: rm -f config.py credentials.json token.json
+
+      - name: Save bot state
+        if: success()
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for f in posted_topics.json blog_posts.json; do
+            if [ -f "$f" ]; then
+              git add "$f"
+            fi
+          done
+
+          if git diff --cached --quiet; then
+            echo "No state changes to save."
+            exit 0
+          fi
+
+          git commit -m "Update bot state [skip ci]"
+          git push
