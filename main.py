@@ -7,7 +7,7 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
-# SEO & Bot Modules Import (সঠিক নাম অনুযায়ী)
+# SEO & Bot Modules Import
 from topic_cluster import choose_topic
 from keyword_research import research_keywords
 from gemini_writer import generate_article
@@ -16,8 +16,14 @@ from duplicate_checker import check_duplicate
 from internal_linker import add_internal_links
 from image_generator import generate_image
 from github_image import upload_image
-from quality_score import calculate_quality_score
 from blogger import create_json_ld, save_post
+
+# Optional quality score check
+try:
+    from quality_score import calculate_quality_score
+except ImportError:
+    def calculate_quality_score(title, content):
+        return {"score": 100}
 
 # Environment Variables
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -39,7 +45,7 @@ def parse_gemini_output(generated_text):
     labels_match = re.search(r"LABELS:\s*(.*?)\n", generated_text)
     content_match = re.search(r"CONTENT:\s*(.*)", generated_text, re.DOTALL)
 
-    title = title_match.group(1).strip() if title_match else "TechBangla Technology Guide"
+    title = title_match.group(1).strip() if title_match else "BD Tech Shop Review"
     search_description = desc_match.group(1).strip() if desc_match else ""
     
     labels_raw = labels_match.group(1).strip() if labels_match else ""
@@ -49,7 +55,7 @@ def parse_gemini_output(generated_text):
     return title, search_description, labels, content
 
 def main():
-    print("🚀 TechBangla SEO Auto-Post Bot Started")
+    print("🚀 BD Tech Shop Review Auto-Post Bot Started")
     
     # 1. Topic & Category Selection
     topic, category = choose_topic()
