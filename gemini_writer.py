@@ -1,21 +1,21 @@
-from google import genai
+import os
 import time
+from google import genai
 
-from config import GEMINI_API_KEY
-
+# Environment Variable থেকে সরাসরি API Key নেওয়া
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
-
+# সঠিক ফ্রি-টিয়ার মডলের তালিকা
 MODELS = [
-    "gemini-3.6-flash"
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite"
 ]
 
-
 MAX_RETRY = 5
-
 
 def generate_article(topic, category, keywords):
 
@@ -30,8 +30,7 @@ def generate_article(topic, category, keywords):
     )
 
     prompt = f"""
-
-আপনি TechBangla-এর জন্য একজন professional SEO বাংলা Technology writer।
+আপনি BD Tech Shop Review-এর জন্য একজন professional SEO বাংলা Technology & Product Reviewer.
 
 Topic:
 {topic}
@@ -48,24 +47,24 @@ Related Keywords:
 আপনাকে অবশ্যই নিচের format অনুসরণ করতে হবে।
 
 TITLE:
-SEO friendly বাংলা title লিখুন।
+SEO friendly বাংলা title লিখুন (প্রোডাক্ট রিভিউ ও কেনাকাটার গাইডের উপযোগী)।
 
 SEARCH_DESCRIPTION:
-150-160 character এর description লিখুন।
+150-160 character এর মধ্যে আকর্ষণীয় সার্চ ডেসক্রিপশন লিখুন।
 
 LABELS:
-৩-৫টি label comma দিয়ে লিখুন।
+৩-৫টি label comma দিয়ে লিখুন।
 
 CONTENT:
 এর পরে HTML format-এ সম্পূর্ণ article লিখুন।
 
 Rules:
-
-- বাংলা ভাষায় লিখুন
+- বাংলা ভাষায় লিখুন
 - Unique content লিখুন
 - 1500+ শব্দ
 - SEO friendly করুন
-- H2 H3 heading ব্যবহার করুন
+- H2, H3 heading ব্যবহার করুন
+- প্রোডাক্টের সুবিধা, অসুবিধা (Pros & Cons), ফিচার এবং দামের ধারণা দিন
 - FAQ section যোগ করুন
 - Conclusion যোগ করুন
 - Keyword stuffing করবেন না
@@ -80,7 +79,6 @@ LABELS:
 এই format পরিবর্তন করবেন না।
 
 CONTENT: এর পরে শুধু article লিখবেন।
-
 """
 
     last_error = None
