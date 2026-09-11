@@ -1,9 +1,9 @@
-name: BD Tech Shop Review Bot - Daily Posts
+name: BD TECH SHOP REVIEW
 
 on:
   schedule:
-    - cron: '17 3 * * *'  # বাংলাদেশ সময় সকাল ৯:১৭ (UTC 3:17 AM)
-    - cron: '17 15 * * *' # বাংলাদেশ সময় রাত ৯:১৭ (UTC 3:17 PM)
+    - cron: '17 3 * * *'  # বাংলাদেশ সময় সকাল ৯:১৭
+    - cron: '17 15 * * *' # বাংলাদেশ সময় রাত ৯:১৭
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   publish:
-    runs-runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
