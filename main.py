@@ -13,7 +13,7 @@ BLOG_ID = os.environ.get("BLOG_ID")
 CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
-# অ্যাফিলিয়েট আইডি
+# অ্যাফিলিয়েট ট্র্যাকিং আইডি
 AFFILIATE_TAG = "?ref=379372"
 
 # Gemini Config
@@ -31,7 +31,7 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে প্রোডাক্টের নাম, ফিচারড ইমেজ ও লিংক সংগ্রহ করে"""
+    """BDStall থেকে প্রোডাক্ট স্ক্র্যাপ করা"""
     url = "https://www.bdstall.com/technology/"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     
@@ -47,7 +47,7 @@ def fetch_bdstall_product():
     return title, image_url, affiliate_link
 
 def generate_review(title):
-    """Gemini AI দিয়ে বাংলা কন্টেন্ট তৈরি"""
+    """Gemini AI দিয়ে রিভিউ আর্টিকেলের কন্টেন্ট তৈরি"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
@@ -61,18 +61,21 @@ def generate_review(title):
     return response.text
 
 def main():
-    print("🚀 BDStall Blogger Auto-Post Bot Started...")
+    print("🚀 Blogger Auto-Post Bot Started...")
     try:
         title, image_url, affiliate_link = fetch_bdstall_product()
         review_text = generate_review(title)
         
-        # ব্লগের জন্য ফিচারড ইমেজ ও অ্যাফিলিয়েট বাটনসহ HTML সাজানো
+        # \n লাইন ব্রেকগুলোকে HTML <br> এ কনভার্ট করা (f-string এর বাইরে)
+        review_html = review_text.replace('\n', '<br>')
+        
+        # ব্লগের জন্য HTML কন্টেন্ট তৈরি (সংশোধিত)
         formatted_content = f"""
         <div style="text-align: center; margin-bottom: 20px;">
             <img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px;" />
         </div>
         <div>
-            {review_text.replace('\n', '<br>')}
+            {review_html}
         </div>
         <br>
         <div style="text-align: center; margin-top: 20px;">
