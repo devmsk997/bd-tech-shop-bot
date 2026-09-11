@@ -2,13 +2,14 @@ import os
 import time
 from google import genai
 
+# Environment Variable থেকে সরাসরি API Key নেওয়া
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
-# বর্তমান সক্রিয় মডলসমূহ
+# জেমিনাই এর বর্তমান সক্রিয় ও আপডেট করা মডেলের তালিকা
 MODELS = [
     "gemini-3.6-flash",
     "gemini-3.5-flash-lite"
