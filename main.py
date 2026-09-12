@@ -27,64 +27,52 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে আসল গ্যাজেট, ছবি ও লিংক এক্সট্র্যাক্ট করার নিখুঁত ফাংশন"""
-    # নির্দিষ্ট সাব-ক্যাটাগরি পেজে সরাসরি হিট করা
-    target_urls = [
-        "https://www.bdstall.com/laptop/",
-        "https://www.bdstall.com/cc-camera/",
-        "https://www.bdstall.com/mobile-phone/",
-        "https://www.bdstall.com/headphone/"
-    ]
-    url = random.choice(target_urls)
-    
+    """BDStall থেকে গ্যাজেট, ছবি ও লিংক এক্সট্র্যাক্ট করার সহজ ও নির্ভরযোগ্য ফাংশন"""
+    url = "https://www.bdstall.com/technology/"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
     
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # পেজের সকল প্রোডাক্ট এঙ্কর ট্যাগ এক্সট্র্যাক্ট করা
-    product_candidates = []
+    products = []
     
-    # ভুয়া কীওয়ার্ডগুলো যা ফিল্টার করা হবে
-    ignore_keywords = [
-        'bdstall', 'popular categories', 'technology', 'বাংলা', 'details', 
-        'see more', 'view all', 'home', 'contact', 'about', 'login', 'cart', 
-        'terms', 'privacy', 'buying guide', 'price in bangladesh'
-    ]
-
-    for a in soup.find_all('a', href=True):
-        href = a['href']
-        # যেসব লিংক সরাসরি নির্দিষ্ট প্রোডাক্ট বা ডিটেইল পেজে যায়
-        if ('/details/' in href or '/product/' in href or '.html' in href or '-price-' in href) and len(href) > 15:
-            # ছবির জন্য খুঁজবো
-            img = a.find('img') or (a.parent.find('img') if a.parent else None)
-            
-            title = ""
-            if img and img.get('alt'):
-                title = img.get('alt').strip()
-            if not title:
-                title = a.text.strip()
+    # BDStall পেজের সকল ইমেজ ট্যাগ বিশ্লেষণ করে প্রোডাক্ট খোঁজা
+    for img in soup.find_all('img'):
+        alt_text = img.get('alt', '').strip()
+        # প্রোডাক্ট ইমেজের alt টেক্সট সাধারণত প্রোডাক্টের নাম হয়
+        if len(alt_text) > 12 and not any(ign in alt_text.lower() for ign in ['bdstall', 'logo', 'banner', 'icon', 'categories', 'বাংলা']):
+            parent_a = img.find_parent('a', href=True)
+            if parent_a:
+                link = parent_a['href']
+                src = img.get('data-src') or img.get('src') or img.get('data-original') or ""
                 
-            # টাইটেল ভ্যালিডেশন
-            if len(title) > 15 and not any(ign in title.lower() for ign in ignore_keywords):
-                img_src = ""
-                if img:
-                    img_src = img.get('data-src') or img.get('src') or img.get('data-original') or ""
-                
-                product_candidates.append({
-                    'title': title,
-                    'link': href,
-                    'img': img_src
+                products.append({
+                    'title': alt_text,
+                    'link': link,
+                    'img': src
                 })
 
-    if not product_candidates:
-        raise Exception("BDStall থেকে আসল কোনো প্রোডাক্ট ফিল্টার করা যায়নি।")
+    # যদি img-এর মাধ্যমে না পাওয়া যায়, তবে সরাসরি a ট্যাগ দিয়ে খুঁজবে
+    if not products:
+        for a in soup.find_all('a', href=True):
+            title = a.text.strip()
+            if len(title) > 15 and not any(ign in title.lower() for ign in ['bdstall', 'popular', 'technology', 'বাংলা', 'view all', 'details', 'privacy', 'about']):
+                link = a['href']
+                img = a.find('img')
+                src = img.get('src') if img else ""
+                products.append({
+                    'title': title,
+                    'link': link,
+                    'img': src
+                })
 
-    # যেকোনো ১টি নিখুঁত প্রোডাক্ট পিক করা
-    selected = random.choice(product_candidates)
+    if not products:
+        raise Exception("BDStall থেকে কোনো প্রোডাক্ট স্ক্র্যাপ করা যায়নি।")
+
+    # র‍্যান্ডম একটি রিয়েল প্রোডাক্ট নির্বাচন
+    selected = random.choice(products)
     
     title = selected['title']
     raw_link = selected['link']
