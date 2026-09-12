@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import requests
 from bs4 import BeautifulSoup
 from google import genai
@@ -14,7 +15,6 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# GenAI Client Initialization
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
@@ -27,69 +27,78 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে যেকোনো প্রোডাক্ট ও ইমেজ এক্সট্র্যাক্ট করার সবচেয়ে পাওয়ারফুল লজিক"""
-    url = "https://www.bdstall.com/technology/"
+    """BDStall থেকে আসল গ্যাজেট, ছবি ও লিংক এক্সট্র্যাক্ট করার নিখুঁত ফাংশন"""
+    # নির্দিষ্ট সাব-ক্যাটাগরি পেজে সরাসরি হিট করা
+    target_urls = [
+        "https://www.bdstall.com/laptop/",
+        "https://www.bdstall.com/cc-camera/",
+        "https://www.bdstall.com/mobile-phone/",
+        "https://www.bdstall.com/headphone/"
+    ]
+    url = random.choice(target_urls)
+    
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9"
     }
     
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # পেজের সমস্ত প্রোডাক্ট বা ডিটেইল লিংক চিহ্নিত করা
-    all_anchors = soup.find_all('a', href=True)
+    # পেজের সকল প্রোডাক্ট এঙ্কর ট্যাগ এক্সট্র্যাক্ট করা
+    product_candidates = []
     
-    selected_title = ""
-    selected_link = ""
-    selected_img = ""
+    # ভুয়া কীওয়ার্ডগুলো যা ফিল্টার করা হবে
+    ignore_keywords = [
+        'bdstall', 'popular categories', 'technology', 'বাংলা', 'details', 
+        'see more', 'view all', 'home', 'contact', 'about', 'login', 'cart', 
+        'terms', 'privacy', 'buying guide', 'price in bangladesh'
+    ]
 
-    # বাদ দেওয়ার জন্য ভুয়া বা ক্যাটালগ কীওয়ার্ড
-    ignore_list = ['popular categories', 'technology', 'বাংলা', 'details', 'see more', 'view all', 'home', 'contact', 'about', 'login']
-
-    for a in all_anchors:
+    for a in soup.find_all('a', href=True):
         href = a['href']
-        text = a.text.strip()
-        
-        # ডিটেইলস বা নির্দিষ্ট প্রোডাক্ট লিংক ফিল্টারিং
-        if ('/details/' in href or '/product/' in href or '.html' in href or 'technology/' in href) and len(text) > 10:
-            if not any(ign in text.lower() for ign in ignore_list):
-                selected_title = text
-                selected_link = href
-                
-                # কন্টেইনার বা প্যারেন্ট এলিমেন্ট থেকে ছবি খুঁজে বের করা
-                parent = a.find_parent('div') or a.find_parent('li') or a
-                img = parent.find('img') if parent else None
-                
-                if img:
-                    selected_img = img.get('data-src') or img.get('src') or img.get('data-original') or ""
-                break
-
-    # সাধারণ এঙ্করে না পাওয়া গেলে সব ইমেজ ট্যাগ দিয়ে ব্যাকআপ খোঁজা
-    if not selected_title or not selected_img:
-        images = soup.find_all('img')
-        for img in images:
-            alt_text = img.get('alt', '').strip()
-            src = img.get('data-src') or img.get('src') or img.get('data-original') or ""
+        # যেসব লিংক সরাসরি নির্দিষ্ট প্রোডাক্ট বা ডিটেইল পেজে যায়
+        if ('/details/' in href or '/product/' in href or '.html' in href or '-price-' in href) and len(href) > 15:
+            # ছবির জন্য খুঁজবো
+            img = a.find('img') or (a.parent.find('img') if a.parent else None)
             
-            parent_a = img.find_parent('a', href=True)
-            if len(alt_text) > 10 and parent_a and not any(ign in alt_text.lower() for ign in ignore_list):
-                selected_title = alt_text
-                selected_link = parent_a['href']
-                selected_img = src
-                break
+            title = ""
+            if img and img.get('alt'):
+                title = img.get('alt').strip()
+            if not title:
+                title = a.text.strip()
+                
+            # টাইটেল ভ্যালিডেশন
+            if len(title) > 15 and not any(ign in title.lower() for ign in ignore_keywords):
+                img_src = ""
+                if img:
+                    img_src = img.get('data-src') or img.get('src') or img.get('data-original') or ""
+                
+                product_candidates.append({
+                    'title': title,
+                    'link': href,
+                    'img': img_src
+                })
 
-    if not selected_title:
-        raise Exception("BDStall পেজ থেকে আসল কোনো টেক প্রোডাক্ট ফিল্টার করা যায়নি।")
+    if not product_candidates:
+        raise Exception("BDStall থেকে আসল কোনো প্রোডাক্ট ফিল্টার করা যায়নি।")
+
+    # যেকোনো ১টি নিখুঁত প্রোডাক্ট পিক করা
+    selected = random.choice(product_candidates)
+    
+    title = selected['title']
+    raw_link = selected['link']
+    image_url = selected['img']
 
     # URL ফরম্যাটিং
-    if not selected_link.startswith('http'):
-        selected_link = "https://www.bdstall.com" + (selected_link if selected_link.startswith('/') else '/' + selected_link)
+    if not raw_link.startswith('http'):
+        raw_link = "https://www.bdstall.com" + (raw_link if raw_link.startswith('/') else '/' + raw_link)
 
-    if selected_img and not selected_img.startswith('http'):
-        selected_img = "https://www.bdstall.com" + (selected_img if selected_img.startswith('/') else '/' + selected_img)
+    if image_url and not image_url.startswith('http'):
+        image_url = "https://www.bdstall.com" + (image_url if image_url.startswith('/') else '/' + image_url)
 
-    affiliate_link = selected_link + AFFILIATE_TAG
-    return selected_title, selected_img, affiliate_link
+    affiliate_link = raw_link + AFFILIATE_TAG
+    return title, image_url, affiliate_link
 
 def generate_review(title):
     """Gemini AI (gemini-3.6-flash) দিয়ে রিভিউ তৈরি"""
