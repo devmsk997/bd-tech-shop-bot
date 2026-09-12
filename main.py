@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -14,11 +14,11 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
 AFFILIATE_TAG = "?ref=379372"
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+# Gemini Client Config
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
+    """Blogger API কানেক্ট করার ফাংশন"""
     token_data = json.loads(TOKEN_JSON)
     creds = Credentials.from_authorized_user_info(token_data)
     if creds and creds.expired and creds.refresh_token:
@@ -27,28 +27,48 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
+    """BDStall থেকে প্রোডাক্ট স্ক্র্যাপ করা"""
     url = "https://www.bdstall.com/technology/"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # BDStall HTML selector
-    product = soup.find('div', class_='product-spec')
-    if not product:
-        product = soup.find('div', class_='product-list') or soup.find('div', class_='prod-box')
-        
-    if not product:
-        raise Exception("BDStall থেকে কোনো প্রোডাক্ট স্ক্র্যাপ করা যায়নি। HTML স্ট্রাকচার পরিবর্তন হতে পারে।")
-        
-    title = product.find('h2').text.strip()
-    raw_link = "https://www.bdstall.com" + product.find('a')['href']
-    image_url = product.find('img')['src']
+    # BDStall-এর প্রোডাক্ট কন্টেইনার সিলেক্টর
+    product = soup.find('div', class_='p_box') or soup.find('div', class_='product-list') or soup.find('div', class_='ref-product')
     
+    if not product:
+        # বিকল্প সিলেক্টর ট্রাই করা
+        product_link = soup.find('a', href=lambda href: href and '/technology/' in href)
+        if product_link:
+            product = product_link.parent
+            
+    if not product:
+        raise Exception("BDStall থেকে কোনো প্রোডাক্ট স্ক্র্যাপ করা যায়নি। HTML লেআউট অ্যাক্সেস করা যাচ্ছে না।")
+
+    # টাইটেল সংগ্রহ
+    title_element = product.find('h2') or product.find('h3') or product.find('a')
+    title = title_element.text.strip()
+    
+    # লিংক সংগ্রহ
+    link_element = product.find('a', href=True)
+    raw_link = link_element['href']
+    if not raw_link.startswith('http'):
+        raw_link = "https://www.bdstall.com" + raw_link
+        
+    # ছবি সংগ্রহ
+    img_element = product.find('img')
+    image_url = img_element['src'] if img_element else ""
+    if image_url and not image_url.startswith('http'):
+        image_url = "https://www.bdstall.com" + image_url
+
     affiliate_link = raw_link + AFFILIATE_TAG
     return title, image_url, affiliate_link
 
 def generate_review(title):
+    """Gemini AI দিয়ে নতুন SDK ব্যবহার করে রিভিউ তৈরি"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
@@ -58,7 +78,10 @@ def generate_review(title):
     ২. প্রধান ফিচারসমূহ (বুলেট পয়েন্টে)
     ৩. কেন কেনা উচিত
     """
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt
+    )
     return response.text
 
 def main():
@@ -68,10 +91,11 @@ def main():
     title, image_url, affiliate_link = fetch_bdstall_product()
     print(f"📦 Product Found: {title}")
     
-    # ২. রিভিউ তৈরি
+    # ২. রিভিউ জেনারেট
     review_text = generate_review(title)
     review_html = review_text.replace('\n', '<br>')
     
+    # HTML ফরম্যাটিং
     formatted_content = f"""
     <div style="text-align: center; margin-bottom: 20px;">
         <img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px;" />
@@ -85,7 +109,7 @@ def main():
     </div>
     """
     
-    # ৩. ব্লগারে পাবলিশ
+    # ৩. ব্লগারে অটো-পোস্ট
     blogger_service = get_blogger_service()
     body = {
         "kind": "blogger#post",
