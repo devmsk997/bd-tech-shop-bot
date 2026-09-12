@@ -14,7 +14,7 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# GenAI Client initialization
+# GenAI Client Initialization
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
@@ -63,7 +63,7 @@ def fetch_bdstall_product():
     return title, image_url, affiliate_link
 
 def generate_review(title):
-    """Gemini AI (gemini-2.5-flash) দিয়ে রিভিউ জেনারেট"""
+    """Gemini AI (gemini-3.6-flash) দিয়ে বাংলা রিভিউ তৈরি"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
@@ -74,7 +74,7 @@ def generate_review(title):
     ৩. কেন কেনা উচিত
     """
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-3.6-flash',
         contents=prompt
     )
     return response.text
