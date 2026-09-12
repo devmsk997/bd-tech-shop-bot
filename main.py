@@ -27,8 +27,16 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে গ্যাজেট, ছবি ও লিংক এক্সট্র্যাক্ট করার সহজ ও নির্ভরযোগ্য ফাংশন"""
-    url = "https://www.bdstall.com/technology/"
+    """BDStall থেকে গ্যাজেট, হাই-কোয়ালিটি ছবি ও লিঙ্ক এক্সট্র্যাক্ট করা"""
+    target_urls = [
+        "https://www.bdstall.com/technology/",
+        "https://www.bdstall.com/air-conditioner/",
+        "https://www.bdstall.com/laptop/",
+        "https://www.bdstall.com/mobile-phone/",
+        "https://www.bdstall.com/cc-camera/"
+    ]
+    url = random.choice(target_urls)
+    
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
@@ -37,48 +45,40 @@ def fetch_bdstall_product():
     soup = BeautifulSoup(response.text, 'html.parser')
     
     products = []
-    
-    # BDStall পেজের সকল ইমেজ ট্যাগ বিশ্লেষণ করে প্রোডাক্ট খোঁজা
+    ignore_keywords = ['bdstall', 'logo', 'banner', 'icon', 'categories', 'বাংলা', 'view all', 'details']
+
     for img in soup.find_all('img'):
         alt_text = img.get('alt', '').strip()
-        # প্রোডাক্ট ইমেজের alt টেক্সট সাধারণত প্রোডাক্টের নাম হয়
-        if len(alt_text) > 12 and not any(ign in alt_text.lower() for ign in ['bdstall', 'logo', 'banner', 'icon', 'categories', 'বাংলা']):
+        if len(alt_text) > 12 and not any(ign in alt_text.lower() for ign in ignore_keywords):
             parent_a = img.find_parent('a', href=True)
             if parent_a:
                 link = parent_a['href']
                 src = img.get('data-src') or img.get('src') or img.get('data-original') or ""
                 
-                products.append({
-                    'title': alt_text,
-                    'link': link,
-                    'img': src
-                })
+                if src and ('product' in src or 'images' in src or 'upload' in src or '.jpg' in src or '.png' in src or '.webp' in src):
+                    products.append({
+                        'title': alt_text,
+                        'link': link,
+                        'img': src
+                    })
 
-    # যদি img-এর মাধ্যমে না পাওয়া যায়, তবে সরাসরি a ট্যাগ দিয়ে খুঁজবে
     if not products:
         for a in soup.find_all('a', href=True):
             title = a.text.strip()
-            if len(title) > 15 and not any(ign in title.lower() for ign in ['bdstall', 'popular', 'technology', 'বাংলা', 'view all', 'details', 'privacy', 'about']):
+            if len(title) > 15 and not any(ign in title.lower() for ign in ignore_keywords):
                 link = a['href']
                 img = a.find('img')
-                src = img.get('src') if img else ""
-                products.append({
-                    'title': title,
-                    'link': link,
-                    'img': src
-                })
+                src = img.get('data-src') or img.get('src') if img else ""
+                products.append({'title': title, 'link': link, 'img': src})
 
     if not products:
-        raise Exception("BDStall থেকে কোনো প্রোডাক্ট স্ক্র্যাপ করা যায়নি।")
+        raise Exception("BDStall থেকে কোনো প্রোডাক্ট পাওয়া যায়নি।")
 
-    # র‍্যান্ডম একটি রিয়েল প্রোডাক্ট নির্বাচন
     selected = random.choice(products)
-    
     title = selected['title']
     raw_link = selected['link']
     image_url = selected['img']
 
-    # URL ফরম্যাটিং
     if not raw_link.startswith('http'):
         raw_link = "https://www.bdstall.com" + (raw_link if raw_link.startswith('/') else '/' + raw_link)
 
@@ -88,16 +88,24 @@ def fetch_bdstall_product():
     affiliate_link = raw_link + AFFILIATE_TAG
     return title, image_url, affiliate_link
 
-def generate_review(title):
-    """Gemini AI (gemini-3.6-flash) দিয়ে রিভিউ তৈরি"""
+def generate_seo_review(title):
+    """গুগল SEO ফ্রেন্ডলি কন্টেন্ট জেনারেট (স্টার/হ্যাশ মার্ক ছাড়া HTML ফরম্যাটে)"""
     prompt = f"""
-    একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
+    আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
+    
     প্রোডাক্টের নাম: {title}
     
-    গঠন:
-    ১. প্রারম্ভিক কথা
-    ২. প্রধান ফিচারসমূহ (বুলেট পয়েন্টে)
-    ৩. কেন কেনা উচিত
+    গুরুত্বপূর্ণ নিয়ম ও ফরম্যাটিং নির্দেশনাবলী:
+    ১. কোনো অবস্থাতেই কোনো স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না। 
+    ২. কোনো জায়গায় বোল্ড বা লিস্ট বোঝাতে সরাসরি HTML ট্যাগ ব্যবহার করুন। যেমন: <h2>, <h3>, <b>, <ul>, <li> ইত্যাদি।
+    ৩. যেখানে বুলেট পয়েন্ট দেওয়ার দরকার সেখানে কেবল HTML <ul> এবং <li> ট্যাগ ব্যবহার করুন।
+    ৪. পোস্টের শুরুতে ২ লাইনের চমৎকার ভূমিকা দিন।
+    ৫. নিচের সেকশনগুলো HTML হেডারে সাজিয়ে লিখুন:
+       - <h2>{title} এর বিস্তারিত ফিচার ও স্পেসিফিকেশন</h2> (bullet points হিসেবে <ul><li>...</li></ul> দিন)
+       - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
+       - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থান</h2>
+       - <h2>আমাদের চূড়ান্ত মতামত</h2>
+    ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     response = client.models.generate_content(
         model='gemini-3.6-flash',
@@ -114,33 +122,35 @@ def main():
     print(f"🖼️ Image URL: {image_url}")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
-    # ২. রিভিউ জেনারেট
-    review_text = generate_review(title)
-    review_html = review_text.replace('\n', '<br>')
+    # ২. SEO রিভিউ জেনারেট
+    review_html = generate_seo_review(title)
     
-    # HTML ফরম্যাটিং
-    img_tag = f'<img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px; display: block; margin: 0 auto;" />' if image_url else ''
+    # হাই-কোয়ালিটি ইমেজের জন্য HTML ট্যাগের স্ট্রাকচার
+    img_tag = f"""
+    <div style="text-align: center; margin: 20px 0;">
+        <img src="{image_url}" alt="{title} Price in Bangladesh" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block;" />
+    </div>
+    """ if image_url else ''
     
-    formatted_content = f"""
-    <div style="text-align: center; margin-bottom: 20px;">
-        {img_tag}
-    </div>
-    <div>
-        {review_html}
-    </div>
-    <br>
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="{affiliate_link}" target="_blank" style="background-color: #0866ff; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">🛒 বিস্তারিত জানুন বা অর্ডার করুন</a>
+    # কল-টু-অ্যাকশন (CTA) বাটন
+    cta_button = f"""
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 বর্তমান দাম জানুন এবং অর্ডার করুন</a>
     </div>
     """
+    
+    formatted_content = f"{img_tag}{review_html}<br>{cta_button}"
+    
+    # SEO ফ্রেন্ডলি পোস্ট টাইটেল (* বা # মুক্ত)
+    post_title = f"{title} দাম বাংলাদেশে এবং বিস্তারিত রিভিউ ২০২৬"
     
     # ৩. ব্লগারে অটো-পোস্ট
     blogger_service = get_blogger_service()
     body = {
         "kind": "blogger#post",
-        "title": title,
+        "title": post_title,
         "content": formatted_content,
-        "labels": ["Tech Review", "BDStall"]
+        "labels": ["Tech Review", "BDStall", "Buying Guide"]
     }
     
     res = blogger_service.posts().insert(blogId=BLOG_ID, body=body, isDraft=False).execute()
