@@ -14,10 +14,10 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# Gemini Config
+# Gemini Config - মডেলে gemini-2.5-flash সেট করা হয়েছে
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
 def get_blogger_service():
     """Blogger API কানেক্ট করার ফাংশন"""
@@ -38,7 +38,6 @@ def fetch_bdstall_product():
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # BDStall-এর প্রোডাক্ট কন্টেইনার সিলেক্টর
     product = soup.find('div', class_='p_box') or soup.find('div', class_='product-list') or soup.find('div', class_='ref-product')
     
     if not product:
@@ -66,7 +65,7 @@ def fetch_bdstall_product():
     return title, image_url, affiliate_link
 
 def generate_review(title):
-    """Gemini AI দিয়ে রিভিউ তৈরি"""
+    """Gemini AI দিয়ে বাংলা রিভিউ তৈরি"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
