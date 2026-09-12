@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from bs4 import BeautifulSoup
-from google import genai
+import google.generativeai as genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -14,8 +14,10 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# Gemini Client Config
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+# Gemini Config
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
 def get_blogger_service():
     """Blogger API কানেক্ট করার ফাংশন"""
@@ -40,7 +42,6 @@ def fetch_bdstall_product():
     product = soup.find('div', class_='p_box') or soup.find('div', class_='product-list') or soup.find('div', class_='ref-product')
     
     if not product:
-        # বিকল্প সিলেক্টর ট্রাই করা
         product_link = soup.find('a', href=lambda href: href and '/technology/' in href)
         if product_link:
             product = product_link.parent
@@ -48,17 +49,14 @@ def fetch_bdstall_product():
     if not product:
         raise Exception("BDStall থেকে কোনো প্রোডাক্ট স্ক্র্যাপ করা যায়নি। HTML লেআউট অ্যাক্সেস করা যাচ্ছে না।")
 
-    # টাইটেল সংগ্রহ
     title_element = product.find('h2') or product.find('h3') or product.find('a')
     title = title_element.text.strip()
     
-    # লিংক সংগ্রহ
     link_element = product.find('a', href=True)
     raw_link = link_element['href']
     if not raw_link.startswith('http'):
         raw_link = "https://www.bdstall.com" + raw_link
         
-    # ছবি সংগ্রহ
     img_element = product.find('img')
     image_url = img_element['src'] if img_element else ""
     if image_url and not image_url.startswith('http'):
@@ -68,7 +66,7 @@ def fetch_bdstall_product():
     return title, image_url, affiliate_link
 
 def generate_review(title):
-    """Gemini AI দিয়ে নতুন SDK ব্যবহার করে রিভিউ তৈরি"""
+    """Gemini AI দিয়ে রিভিউ তৈরি"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
@@ -78,10 +76,7 @@ def generate_review(title):
     ২. প্রধান ফিচারসমূহ (বুলেট পয়েন্টে)
     ৩. কেন কেনা উচিত
     """
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=prompt
-    )
+    response = model.generate_content(prompt)
     return response.text
 
 def main():
