@@ -27,7 +27,7 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে প্রোডাক্টের আসল নাম, লিংক ও ছবি স্ক্র্যাপ করার ফলব্যাক লজিক"""
+    """BDStall থেকে আসল প্রোডাক্ট, সঠিক ছবি ও লিংক এক্সট্র্যাক্ট করা"""
     url = "https://www.bdstall.com/technology/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -36,47 +36,43 @@ def fetch_bdstall_product():
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # BDStall-এর সকল প্রোডাক্ট লিংক খুঁজে বের করা
-    all_links = soup.find_all('a', href=True)
+    # BDStall-এর আসল প্রোডাক্ট কার্ড খোঁজা
+    cards = soup.find_all('div', class_=lambda c: c and ('p_box' in c or 'ref-product' in c or 'product-list' in c or 'pro-box' in c))
     
+    # যদি নির্দিষ্ট ক্লাস না পাওয়া যায়, তবে ইমেজের সাথে আসল লিংক খোঁজা
+    if not cards:
+        cards = soup.find_all('div', class_='col-md-3') or soup.find_all('div', class_='col-sm-4')
+
     selected_title = ""
     selected_link = ""
     selected_img = ""
 
-    for a in all_links:
-        href = a['href']
-        # যেসব লিংকে প্রোডাক্ট আইডি বা টেকনোলজি ক্যাটালগ রয়েছে
-        if ('/details/' in href or '/product/' in href or '.html' in href) and len(a.text.strip()) > 10:
-            text = a.text.strip()
-            if text.lower() not in ["details", "more info", "বাংলা", "view details"]:
-                selected_title = text
-                selected_link = href
+    for card in cards:
+        a_tag = card.find('a', href=True)
+        img_tag = card.find('img')
+        
+        # টাইটেল খোঁজা
+        title_tag = card.find(['h2', 'h3', 'h4']) or a_tag
+        if title_tag:
+            title_text = title_tag.text.strip()
+            # ভুয়া/সাধারণ নাম বাদ দেওয়া
+            if len(title_text) > 12 and not any(x in title_text.lower() for x in ['popular categories', 'technology', 'বাংলা', 'details', 'see more']):
+                selected_title = title_text
                 
-                # যদি ইমেজের ট্যাগ থাকে
-                img = a.find('img') or a.parent.find('img')
-                if img:
-                    selected_img = img.get('data-src') or img.get('src') or ""
-                break
-                
-    if not selected_title:
-        # ফলব্যাক: যেকোনো হেইডিং বা প্রোডাক্ট টাইটেল খোঁজা
-        headers_tags = soup.find_all(['h2', 'h3'])
-        for h in headers_tags:
-            if len(h.text.strip()) > 10:
-                selected_title = h.text.strip()
-                parent_a = h.find_parent('a') or h.find('a')
-                if parent_a and parent_a.get('href'):
-                    selected_link = parent_a['href']
+                if a_tag and a_tag.get('href'):
+                    selected_link = a_tag['href']
+                    
+                if img_tag:
+                    selected_img = img_tag.get('data-src') or img_tag.get('src') or img_tag.get('data-original') or ""
                 break
 
     if not selected_title:
-        raise Exception("BDStall পেজ থেকে কোনো প্রোডাক্ট তথ্য ফিল্টার করা সম্ভব হয়নি।")
+        raise Exception("BDStall পেজ থেকে আসল কোনো টেক প্রোডাক্ট ফিল্টার করা যায়নি।")
 
-    # লিংক ফরম্যাটিং
+    # URL ফরম্যাটিং
     if not selected_link.startswith('http'):
         selected_link = "https://www.bdstall.com" + (selected_link if selected_link.startswith('/') else '/' + selected_link)
 
-    # ইমেজ লিংক ফরম্যাটিং
     if selected_img and not selected_img.startswith('http'):
         selected_img = "https://www.bdstall.com" + (selected_img if selected_img.startswith('/') else '/' + selected_img)
 
@@ -84,7 +80,7 @@ def fetch_bdstall_product():
     return selected_title, selected_img, affiliate_link
 
 def generate_review(title):
-    """Gemini AI (gemini-3.6-flash) দিয়ে রিভিউ তৈরি"""
+    """Gemini AI (gemini-3.6-flash) দিয়ে নিখুঁত বাংলা রিভিউ তৈরি"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
@@ -107,13 +103,14 @@ def main():
     title, image_url, affiliate_link = fetch_bdstall_product()
     print(f"📦 Product Found: {title}")
     print(f"🖼️ Image URL: {image_url}")
+    print(f"🔗 Affiliate Link: {affiliate_link}")
     
     # ২. রিভিউ জেনারেট
     review_text = generate_review(title)
     review_html = review_text.replace('\n', '<br>')
     
-    # HTML ফরম্যাটিং
-    img_tag = f'<img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px;" />' if image_url else ''
+    # HTML ফরম্যাটিং (ছবি নিশ্চিত করে বসানো)
+    img_tag = f'<img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px; display: block; margin: 0 auto;" />' if image_url else ''
     
     formatted_content = f"""
     <div style="text-align: center; margin-bottom: 20px;">
