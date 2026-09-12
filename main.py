@@ -14,7 +14,7 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# GenAI Client Initialization
+# GenAI Client
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
@@ -27,7 +27,7 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে প্রোডাক্ট স্ক্র্যাপ করা"""
+    """BDStall থেকে প্রোডাক্টের আসল নাম, লিংক ও ছবি স্ক্র্যাপ করার নির্ভুল ফাংশন"""
     url = "https://www.bdstall.com/technology/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -36,34 +36,44 @@ def fetch_bdstall_product():
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    product = soup.find('div', class_='p_box') or soup.find('div', class_='product-list') or soup.find('div', class_='ref-product')
+    # BDStall-এর প্রোডাক্ট কন্টেইনারগুলো খুঁজে বের করা
+    products = soup.find_all('div', class_='product-spec') or soup.find_all('div', class_='p_box') or soup.find_all('div', class_='ref-product')
     
-    if not product:
-        product_link = soup.find('a', href=lambda href: href and '/technology/' in href)
-        if product_link:
-            product = product_link.parent
+    selected_product = None
+    for p in products:
+        title_tag = p.find('h2') or p.find('h3') or p.find('a')
+        if title_tag and len(title_tag.text.strip()) > 5 and title_tag.text.strip() != "বাংলা":
+            selected_product = p
+            break
             
-    if not product:
-        raise Exception("BDStall থেকে কোনো প্রোডাক্ট স্ক্র্যাপ করা যায়নি। HTML লেআউট অ্যাক্সেস করা যাচ্ছে না।")
+    if not selected_product:
+        raise Exception("BDStall থেকে সঠিক কোনো প্রোডাক্ট স্ক্র্যাপ করা সম্ভব হয়নি।")
 
-    title_element = product.find('h2') or product.find('h3') or product.find('a')
+    # প্রোডাক্টের টাইটেল সংগ্রহ
+    title_element = selected_product.find('h2') or selected_product.find('h3') or selected_product.find('a')
     title = title_element.text.strip()
     
-    link_element = product.find('a', href=True)
+    # লিংক সংগ্রহ
+    link_element = selected_product.find('a', href=True)
     raw_link = link_element['href']
     if not raw_link.startswith('http'):
-        raw_link = "https://www.bdstall.com" + raw_link
+        raw_link = "https://www.bdstall.com" + (raw_link if raw_link.startswith('/') else '/' + raw_link)
         
-    img_element = product.find('img')
-    image_url = img_element['src'] if img_element else ""
+    # ইমেজ URL সঠিক ফরম্যাটে এক্সট্র্যাক্ট করা
+    img_element = selected_product.find('img')
+    image_url = ""
+    if img_element:
+        # data-src বা src থেকে আসল ছবির লিংক নেওয়া
+        image_url = img_element.get('data-src') or img_element.get('src') or ""
+        
     if image_url and not image_url.startswith('http'):
-        image_url = "https://www.bdstall.com" + image_url
+        image_url = "https://www.bdstall.com" + (image_url if image_url.startswith('/') else '/' + image_url)
 
     affiliate_link = raw_link + AFFILIATE_TAG
     return title, image_url, affiliate_link
 
 def generate_review(title):
-    """Gemini AI (gemini-3.6-flash) দিয়ে বাংলা রিভিউ তৈরি"""
+    """Gemini AI (gemini-3.6-flash) দিয়ে রিভিউ জেনারেট"""
     prompt = f"""
     একটি টেক ব্লগের জন্য আকর্ষনীয় বাংলা রিভিউ পোস্ট লিখুন:
     প্রোডাক্টের নাম: {title}
@@ -85,15 +95,18 @@ def main():
     # ১. স্ক্র্যাপিং
     title, image_url, affiliate_link = fetch_bdstall_product()
     print(f"📦 Product Found: {title}")
+    print(f"🖼️ Image URL: {image_url}")
     
     # ২. রিভিউ জেনারেট
     review_text = generate_review(title)
     review_html = review_text.replace('\n', '<br>')
     
-    # HTML ফরম্যাটিং
+    # HTML ফরম্যাটিং (ছবি নিশ্চিত করার ট্যাগসহ)
+    img_tag = f'<img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px;" />' if image_url else ''
+    
     formatted_content = f"""
     <div style="text-align: center; margin-bottom: 20px;">
-        <img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+        {img_tag}
     </div>
     <div>
         {review_html}
