@@ -1,12 +1,14 @@
 import os
 import json
 import random
+import time
 import requests
 from bs4 import BeautifulSoup
 from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 BLOG_ID = os.environ.get("BLOG_ID")
@@ -27,7 +29,7 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def fetch_bdstall_product():
-    """BDStall থেকে গ্যাজেট, হাই-কোয়ালিটি ছবি ও লিঙ্ক এক্সট্র্যাক্ট করা"""
+    """BDStall থেকে গ্যাজেট, হাই-কোয়ালিটি ছবি ও লিঙ্ক এক্সট্র্যাক্ট করা"""
     target_urls = [
         "https://www.bdstall.com/technology/",
         "https://www.bdstall.com/air-conditioner/",
@@ -72,7 +74,7 @@ def fetch_bdstall_product():
                 products.append({'title': title, 'link': link, 'img': src})
 
     if not products:
-        raise Exception("BDStall থেকে কোনো প্রোডাক্ট পাওয়া যায়নি।")
+        raise Exception("BDStall থেকে কোনো প্রোডাক্ট পাওয়া যায়নি।")
 
     selected = random.choice(products)
     title = selected['title']
@@ -88,30 +90,49 @@ def fetch_bdstall_product():
     affiliate_link = raw_link + AFFILIATE_TAG
     return title, image_url, affiliate_link
 
+# ৫0৩ সার্ভিস আনএভেইলেবল ত্রুটির ক্ষেত্রে স্বয়ংক্রিয়ভাবে ৫ বার পুনরায় চেষ্টা করার লজিক
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=5, max=30),
+    reraise=True
+)
 def generate_seo_review(title):
-    """গুগল SEO ফ্রেন্ডলি কন্টেন্ট জেনারেট (স্টার/হ্যাশ মার্ক ছাড়া HTML ফরম্যাটে)"""
+    """গুগল SEO ফ্রেন্ডলি কন্টেন্ট জেনারেট (স্টার/হ্যাশ মার্ক ছাড়া HTML ফরম্যাটে)"""
     prompt = f"""
     আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
     
     প্রোডাক্টের নাম: {title}
     
-    গুরুত্বপূর্ণ নিয়ম ও ফরম্যাটিং নির্দেশনাবলী:
+    গুরুত্বপূর্ণ নিয়ম ও ফরম্যাটিং নির্দেশনাবলী:
     ১. কোনো অবস্থাতেই কোনো স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না। 
-    ২. কোনো জায়গায় বোল্ড বা লিস্ট বোঝাতে সরাসরি HTML ট্যাগ ব্যবহার করুন। যেমন: <h2>, <h3>, <b>, <ul>, <li> ইত্যাদি।
-    ৩. যেখানে বুলেট পয়েন্ট দেওয়ার দরকার সেখানে কেবল HTML <ul> এবং <li> ট্যাগ ব্যবহার করুন।
+    ২. কোনো জায়গায় বোল্ড বা লিস্ট বোঝাতে সরাসরি HTML ট্যাগ ব্যবহার করুন। যেমন: <h2>, <h3>, <b>, <ul>, <li> ইত্যাদি।
+    ৩. যেখানে বুলেট পয়েন্ট দেওয়ার দরকার সেখানে কেবল HTML <ul> এবং <li> ট্যাগ ব্যবহার করুন।
     ৪. পোস্টের শুরুতে ২ লাইনের চমৎকার ভূমিকা দিন।
-    ৫. নিচের সেকশনগুলো HTML হেডারে সাজিয়ে লিখুন:
+    ৫. নিচের সেকশনগুলো HTML হেডারে সাজিয়ে লিখুন:
        - <h2>{title} এর বিস্তারিত ফিচার ও স্পেসিফিকেশন</h2> (bullet points হিসেবে <ul><li>...</li></ul> দিন)
        - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
        - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থান</h2>
-       - <h2>আমাদের চূড়ান্ত মতামত</h2>
+       - <h2>আমাদের চূড়ান্ত মতামত</h2>
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
-    response = client.models.generate_content(
-        model='gemini-3.6-flash',
-        contents=prompt
-    )
-    return response.text
+    
+    # ব্যাকআপ মডেল সাপোর্ট
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                print(f"⚠️ Model {model_name} busy. Retrying/Switching...")
+                continue
+            raise e
+            
+    raise Exception("All Gemini models are currently unavailable.")
 
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
@@ -125,7 +146,7 @@ def main():
     # ২. SEO রিভিউ জেনারেট
     review_html = generate_seo_review(title)
     
-    # হাই-কোয়ালিটি ইমেজের জন্য HTML ট্যাগের স্ট্রাকচার
+    # হাই-কোয়ালিটি ইমেজের জন্য HTML ট্যাগের স্ট্রাকচার
     img_tag = f"""
     <div style="text-align: center; margin: 20px 0;">
         <img src="{image_url}" alt="{title} Price in Bangladesh" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block;" />
