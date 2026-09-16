@@ -115,12 +115,11 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    # 404 এবং AFC Warning এড়াতে সঠিকভাবে আপডেটকৃত মডেল আইডি
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    # বর্তমান অফিশিয়াল সাপোর্টকৃত মডেল নামের সঠিক তালিকা
+    models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
     
     for model_name in models_to_try:
         try:
-            # AFC Warning দূর করতে Chat API ব্যবহার করা হচ্ছে
             chat = client.chats.create(model=model_name)
             response = chat.send_message(prompt)
             return response.text
