@@ -8,7 +8,7 @@ from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 BLOG_ID = os.environ.get("BLOG_ID")
@@ -90,7 +90,6 @@ def fetch_bdstall_product():
     affiliate_link = raw_link + AFFILIATE_TAG
     return title, image_url, affiliate_link
 
-# ৫0৩ সার্ভিস আনএভেইলেবল ত্রুটির ক্ষেত্রে স্বয়ংক্রিয়ভাবে ৫ বার পুনরায় চেষ্টা করার লজিক
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential(multiplier=2, min=5, max=30),
@@ -116,23 +115,20 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    # ব্যাকআপ মডেল সাপোর্ট
+    # 404 এবং AFC Warning এড়াতে সঠিকভাবে আপডেটকৃত মডেল আইডি
     models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash"]
     
     for model_name in models_to_try:
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt
-            )
+            # AFC Warning দূর করতে Chat API ব্যবহার করা হচ্ছে
+            chat = client.chats.create(model=model_name)
+            response = chat.send_message(prompt)
             return response.text
         except Exception as e:
-            if "503" in str(e) or "UNAVAILABLE" in str(e):
-                print(f"⚠️ Model {model_name} busy. Retrying/Switching...")
-                continue
-            raise e
+            print(f"⚠️ Model {model_name} failed ({e}). Switching to next model...")
+            continue
             
-    raise Exception("All Gemini models are currently unavailable.")
+    raise Exception("All Gemini models failed to process the request.")
 
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
