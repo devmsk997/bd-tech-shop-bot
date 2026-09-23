@@ -12,7 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 # keyword_research.py ফাইল থেকে স্ক্র্যাপ করার ফাংশন ইমপোর্ট
 from keyword_research import get_high_search_product
 
-# Environment Variables
+# এনভায়রনমেন্ট ভেরিয়েবল (Environment Variables)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 BLOG_ID = os.environ.get("BLOG_ID")
 CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS_JSON")
@@ -22,11 +22,11 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# Google GenAI Client Initialize
+# গুগল জেমিনী ক্লায়েন্ট ইনিশিয়ালাইজ
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
-    """Blogger API কানেক্ট করার ফাংশন"""
+    """ব্লগার এপিআই (Blogger API) কানেক্ট করার ফাংশন"""
     token_data = json.loads(TOKEN_JSON)
     creds = Credentials.from_authorized_user_info(token_data)
     if creds and creds.expired and creds.refresh_token:
@@ -40,7 +40,7 @@ def get_blogger_service():
     reraise=True
 )
 def generate_seo_review(title):
-    """গুগল SEO ফ্রেন্ডলি কন্টেন্ট জেনারেট (HTML ফরম্যাটে)"""
+    """গুগল এসইও ফ্রেন্ডলি বাংলা কন্টেন্ট জেনারেট (HTML ফরম্যাটে)"""
     prompt = f"""
     আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
     
@@ -59,7 +59,7 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.6-flash"]
     
     for model_name in models_to_try:
         try:
@@ -73,7 +73,7 @@ def generate_seo_review(title):
     raise Exception("All Gemini models failed to process the request.")
 
 def post_to_facebook(title, product_url):
-    """ফেসবুক পেজে স্বয়ংক্রিয়ভাবে রিভিউ শেয়ার করার ফাংশন"""
+    """ফেসবুক পেজে স্বয়ংক্রিয়ভাবে লিঙ্ক ও প্রোফাইল ক্রেডিটসহ পোস্ট শেয়ার"""
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
         print("⚠️ Facebook Credentials missing in GitHub Secrets. Skipping FB Post.")
         return
@@ -124,7 +124,7 @@ def main():
     </div>
     """ if image_url else ''
     
-    # Call to Action Button
+    # কল-টু-অ্যাকশন (CTA) বাটন
     cta_button = f"""
     <div style="text-align: center; margin: 30px 0;">
         <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 বর্তমান দাম জানুন এবং অর্ডার করুন</a>
