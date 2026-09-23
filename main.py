@@ -57,10 +57,10 @@ def generate_seo_review(title):
         }]
     }
     
-    # গুগলের বর্তমানে সক্রিয় ও অনুমোদিত সচল মডেলসমূহ
+    # কোটা বা লিমিট ফ্রি দ্রুত কাজ করা মডেলসমূহ
     models = [
-        "gemini-3.6-flash",
-        "gemini-3.1-pro-preview"
+        "gemini-2.5-flash",
+        "gemini-1.5-flash"
     ]
 
     for model_name in models:
@@ -69,25 +69,26 @@ def generate_seo_review(title):
         for attempt in range(1, 3):
             try:
                 print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-                response = requests.post(endpoint, json=payload, timeout=25)
+                # Time out spent to 45 seconds to avoid timeout
+                response = requests.post(endpoint, json=payload, timeout=45)
                 res_json = response.json()
                 
                 if response.status_code == 200:
                     text = res_json['candidates'][0]['content']['parts'][0]['text']
                     return text
                 else:
-                    print(f"⚠️ API Error ({response.status_code}): {res_json}")
+                    print(f"⚠️ API Error ({response.status_code}): {res_json.get('error', {}).get('message')}")
                     if response.status_code in [503, 429]:
-                        print("⏳ Server busy or rate limited. Retrying in 10 seconds...")
-                        time.sleep(10)
+                        print("⏳ Rate limited or busy. Retrying in 5 seconds...")
+                        time.sleep(5)
                     else:
                         break
             except requests.exceptions.Timeout:
-                print("⏳ Timeout reached (25s). Retrying...")
-                time.sleep(5)
+                print("⏳ Timeout reached. Trying next attempt...")
+                time.sleep(3)
             except Exception as e:
                 print(f"⚠️ Request Failed: {e}")
-                time.sleep(3)
+                time.sleep(2)
 
     raise Exception("❌ Unable to generate content from Gemini REST API.")
 
