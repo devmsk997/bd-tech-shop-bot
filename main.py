@@ -6,7 +6,7 @@ from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from keyword_research import get_high_search_product
 
@@ -41,8 +41,8 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_fixed(10),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=3, min=15, max=90),
     reraise=True
 )
 def generate_seo_review(title):
@@ -63,18 +63,31 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # গুগলের নির্দেশিত সঠিক মডেল
-    model_name = "gemini-3.6-flash"
-    
-    try:
-        print(f"🤖 Requesting content generation using model: {model_name}")
-        chat = client.chats.create(model=model_name)
-        response = chat.send_message(prompt)
-        return response.text
-    except Exception as e:
-        err_msg = str(e)
-        print(f"⚠️ API Request error for {model_name}: {err_msg}")
-        raise e
+    # প্রাইমারি এবং অল্টারনেটিভ ফলব্যাক মডেলের লিস্ট
+    models_to_try = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    last_error = None
+
+    for model_name in models_to_try:
+        try:
+            print(f"🤖 Requesting content generation using model: {model_name}")
+            chat = client.chats.create(model=model_name)
+            response = chat.send_message(prompt)
+            return response.text
+        except Exception as e:
+            err_msg = str(e)
+            last_error = e
+            print(f"⚠️ API Request error for {model_name}: {err_msg}")
+            
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                print("⏳ Quota Limit / Rate limit reached. Waiting 35 seconds before trying next model...")
+                time.sleep(35)
+            elif "503" in err_msg or "UNAVAILABLE" in err_msg:
+                print("⏳ Google API High Demand. Waiting 15 seconds...")
+                time.sleep(15)
+            continue
+
+    if last_error:
+        raise last_error
 
 def post_to_facebook(title, product_url):
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
