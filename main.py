@@ -54,28 +54,30 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=2, min=5, max=20),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=3, min=10, max=60),
     reraise=True
 )
 def generate_seo_review(title):
     prompt = f"""
-    Apni ekjon professional SEO Bangla tech blog writer. Nicher product-er jonno ekta 100% SEO Optimized review post likhun.
+    আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
     
-    Product Title: {title}
+    প্রোডাক্টের নাম: {title}
     
-    Instruction:
-    1. Konosthate star (*) ba hash (#) symbol bebohar korben na.
-    2. HTML tag bebohar korun (e.g. <h2>, <h3>, <b>, <ul>, <li>).
-    3. Post-er shurute 2 line-er shundor intro din.
-    4. Heading gulo milaye HTML tag-e likhun:
-       - <h2>{title} er bistarito feature o specification</h2> (<ul><li>...</li></ul>)
-       - <h2>Keno ei product-ti kena uchit?</h2>
-       - <h2>Bangladesh-e {title} er dam o bajarer obostha</h2>
-       - <h2>Amader churonto motamot</h2>
+    গুরুত্বপূর্ণ নিয়ম ও ফরম্যাটিং নির্দেশনাবলী:
+    ১. কোনো অবস্থাতেই কোনো স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না। 
+    ২. কোনো জায়গায় বোল্ড বা লিস্ট বোঝাতে সরাসরি HTML ট্যাগ ব্যবহার করুন। যেমন: <h2>, <h3>, <b>, <ul>, <li> ইত্যাদি।
+    ৩. যেখানে বুলেট পয়েন্ট দেওয়ার দরকার সেখানে কেবল HTML <ul> এবং <li> ট্যাগ ব্যবহার করুন।
+    ৪. পোস্টের শুরুতে ২ লাইনের চমৎকার ভূমিকা দিন।
+    ৫. নিচের সেকশনগুলো HTML হেডারে সাজিয়ে লিখুন:
+       - <h2>{title} এর বিস্তারিত ফিচার ও স্পেসিফিকেশন</h2> (bullet points হিসেবে <ul><li>...</li></ul> দিন)
+       - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
+       - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থান</h2>
+       - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    models_to_try = ["gemini-3.6-flash"]
+    # একাধিক মডেল দিয়ে চেষ্টা করা হবে যেন একটি কোটা শেষ হলেও অন্যটিতে কাজ করে
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
     
     for model_name in models_to_try:
         try:
@@ -83,10 +85,13 @@ def generate_seo_review(title):
             response = chat.send_message(prompt)
             return response.text
         except Exception as e:
-            print(f"⚠️ Model {model_name} failed ({e}). Switching to next model...")
+            err_msg = str(e)
+            print(f"⚠️ Model {model_name} failed ({err_msg}). Switching to next model...")
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                time.sleep(15)  # ৪২৯ এরর আসলে ১৫ সেকেন্ড অপেক্ষা করবে
             continue
             
-    raise Exception("All Gemini models failed to process the request.")
+    raise Exception("All Gemini models failed to process the request due to quota limit or availability.")
 
 def post_to_facebook(title, product_url):
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
@@ -95,7 +100,7 @@ def post_to_facebook(title, product_url):
 
     url = f"https://graph.facebook.com/v18.0/{FB_PAGE_ID}/feed"
     
-    message = f"🔥 New Tech Product Review!\n\n📌 {title}\n\n👉 Amader blog-e bistarito review o dam dekhun:\n{product_url}\n\n👤 Post Managed By: Md Solayman\n🔗 Profile: https://www.facebook.com/MdSolayman996/"
+    message = f"🔥 New Tech Product Review!\n\n📌 {title}\n\n👉 আমাদের ব্লগে বিস্তারিত রিভিউ এবং অরিজিনাল দাম দেখে নিন:\n{product_url}\n\n👤 Post Managed By: Md Solayman\n🔗 Profile: https://www.facebook.com/MdSolayman996/"
     
     payload = {
         'message': message,
@@ -148,7 +153,7 @@ def main():
     
     cta_button = f"""
     <div style="text-align: center; margin: 30px 0;">
-        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 Bortoman Dam Janun O Order Korun</a>
+        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 বর্তমান দাম জানুন এবং অর্ডার করুন</a>
     </div>
     """
     
