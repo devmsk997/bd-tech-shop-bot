@@ -22,7 +22,7 @@ AFFILIATE_TAG = "?ref=379372"
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
-    """BDStall image bypass system with CDN"""
+    """BDStall hotlink bypass CDN generator"""
     if not image_url:
         return None
     encoded_url = urllib.parse.quote(image_url, safe='')
@@ -54,29 +54,33 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # সচল ও কোটা ফ্রেন্ডলি মডেলের তালিকা
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.6-flash"]
-    last_error = None
-
-    for model_name in models_to_try:
+    # গুগল সার্ভিস নির্দেশিত একমাত্র সচল মডেল
+    model_name = "gemini-3.6-flash"
+    max_retries = 5
+    
+    for attempt in range(1, max_retries + 1):
         try:
-            print(f"🤖 Requesting content generation using model: {model_name}")
+            print(f"🤖 Requesting content generation using model: {model_name} (Attempt {attempt}/{max_retries})")
             chat = client.chats.create(model=model_name)
             response = chat.send_message(prompt)
             if response and response.text:
                 return response.text
         except Exception as e:
             err_msg = str(e)
-            last_error = e
-            print(f"⚠️ API Request error for {model_name}: {err_msg}")
-            time.sleep(3) # দ্রুত পরবর্তী মডেলে চলে যাবে, সময় নষ্ট করবে না
-            continue
+            print(f"⚠️ API Request error: {err_msg}")
+            
+            # Google Server High Demand (503) অথবা Rate Limit (429) এর জন্য অপেক্ষা
+            if "503" in err_msg or "UNAVAILABLE" in err_msg or "429" in err_msg:
+                wait_time = attempt * 10
+                print(f"⏳ Google API high demand or busy. Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                time.sleep(5)
 
-    if last_error:
-        raise last_error
+    raise Exception("❌ Google API Service is currently unresponsive after maximum retries.")
 
 def post_to_facebook(title, product_url):
-    """Facebook Page Post System"""
+    """Facebook Page Auto Post System"""
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
         print("⚠️ Facebook Credentials missing in GitHub Secrets. Skipping FB Post.")
         return
@@ -98,7 +102,7 @@ def post_to_facebook(title, product_url):
     }
     
     try:
-        response = requests.post(url, data=payload, timeout=10)
+        response = requests.post(url, data=payload, timeout=15)
         res_data = response.json()
         if response.status_code == 200 and 'id' in res_data:
             print(f"✅ Successfully posted to Facebook Page! Post ID: {res_data['id']}")
