@@ -106,7 +106,7 @@ def main():
     raw_url = product_data['url']
     image_url = product_data['image']
     
-    # ছবির ইউআরএল ক্লিন এবং নিরাপদ HTTPS নিশ্চিত করা (থাম্বনেইল ফিক্স)
+    # ছবির ইউআরএল ক্লিন করা
     if image_url:
         if image_url.startswith('//'):
             image_url = 'https:' + image_url
@@ -118,17 +118,20 @@ def main():
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
     print(f"📦 Product Found: {title}")
-    print(f"🖼️ Clean Image URL: {image_url}")
+    print(f"🖼️ Image URL: {image_url}")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
     # ২. SEO রিভিউ জেনারেট
     review_html = generate_seo_review(title)
     
-    # ব্লগার থিমের স্ট্যান্ডার্ড ফিচার্ড ইমেজের HTML স্ট্রাকচার
+    # ব্লগার ডেডিকেটেড ফিচার্ড ইমেজের স্ট্রাকচার
     featured_img_tag = f"""
+    <div style="display:none;">
+        <img src="{image_url}" alt="{title}" />
+    </div>
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
         <a href="{image_url}" style="margin-left: 1em; margin-right: 1em;">
-            <img border="0" data-original-height="800" data-original-width="800" src="{image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
+            <img border="0" src="{image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
         </a>
     </div>
     """ if image_url else ''
