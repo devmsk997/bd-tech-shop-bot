@@ -2,7 +2,7 @@ import requests
 import base64
 
 def get_working_image_url(raw_image_url):
-    """BDStall Protection Bypass and Convert to Permanent CDN Image"""
+    """BDStall এর হটলিংক ব্লক বাইপাস করে ImgBB অথবা Base64 ইমেজে রূপান্তর"""
     if not raw_image_url:
         return ""
         
@@ -15,7 +15,7 @@ def get_working_image_url(raw_image_url):
         raw_image_url = 'https://www.bdstall.com/' + raw_image_url.lstrip('/')
 
     try:
-        # Real Chrome Browser Session to Download Image
+        # জেনুইন ক্রোম ব্রাউজার সেজে ছবি ডাউনলোড
         session = requests.Session()
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -28,7 +28,7 @@ def get_working_image_url(raw_image_url):
         if response.status_code == 200 and len(response.content) > 1000:
             b64_image = base64.b64encode(response.content).decode('utf-8')
             
-            # ImgBB Upload
+            # ImgBB তে সরাসরি আপলোড
             imgbb_url = "https://api.imgbb.com/1/upload"
             payload = {
                 "key": "8c7ec16bd83bd8fb06aa6e2b904eb120",
@@ -42,7 +42,7 @@ def get_working_image_url(raw_image_url):
                 print(f"✅ ImgBB Hosted Success: {hosted_url}")
                 return hosted_url
             
-            # Fallback: Embedded Base64 Image string
+            # ImgBB ফেইল করলে ব্যাকআপ হিসেবে Base64 ব্যবহার
             print("⚠️ ImgBB Upload Failed, Using Base64 Fallback")
             return f"data:image/jpeg;base64,{b64_image}"
             
