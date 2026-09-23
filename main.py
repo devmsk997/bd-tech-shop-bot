@@ -1,13 +1,12 @@
 import os
 import json
-import random
 import time
 import requests
 from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from keyword_research import get_high_search_product
 
@@ -24,7 +23,7 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
     """
-    BDStall hotlink block bypass bypass system.
+    BDStall hotlink block bypass system.
     Directly converts BDStall image URL into wsrv.nl CDN proxy URL.
     """
     if not image_url:
@@ -42,8 +41,8 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 @retry(
-    stop=stop_after_attempt(7),
-    wait=wait_exponential(multiplier=5, min=20, max=180),
+    stop=stop_after_attempt(3), # সর্বোচ্চ ৩ বার ট্রাই করবে
+    wait=wait_fixed(5),         # মাত্র ৫ সেকেন্ড অপেক্ষা করবে
     reraise=True
 )
 def generate_seo_review(title):
@@ -64,24 +63,18 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    model_name = "gemini-3.6-flash"
+    model_name = "gemini-2.5-flash"
     
     try:
         print(f"🤖 Requesting content generation using model: {model_name}")
-        chat = client.chats.create(model=model_name)
-        response = chat.send_message(prompt)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+        )
         return response.text
     except Exception as e:
         err_msg = str(e)
         print(f"⚠️ API Request error for {model_name}: {err_msg}")
-        
-        if "503" in err_msg or "UNAVAILABLE" in err_msg:
-            print("⏳ Google API High Demand / Server Busy. Waiting 30 seconds...")
-            time.sleep(30)
-        elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-            print("⏳ API Rate limit reached. Waiting 60 seconds...")
-            time.sleep(60)
-            
         raise e
 
 def post_to_facebook(title, product_url):
