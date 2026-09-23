@@ -12,7 +12,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 # keyword_research.py ফাইল থেকে স্ক্র্যাপ করার ফাংশন ইমপোর্ট
 from keyword_research import get_high_search_product
 
-# এনভায়রনমেন্ট ভেরিয়েবল (Environment Variables)
+# Environment Variables
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 BLOG_ID = os.environ.get("BLOG_ID")
 CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS_JSON")
@@ -22,11 +22,11 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# গুগল জেমিনী ক্লায়েন্ট ইনিশিয়ালাইজ
+# Google GenAI Client Initialize
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
-    """ব্লগার এপিআই (Blogger API) কানেক্ট করার ফাংশন"""
+    """Blogger API কানেক্ট করার ফাংশন"""
     token_data = json.loads(TOKEN_JSON)
     creds = Credentials.from_authorized_user_info(token_data)
     if creds and creds.expired and creds.refresh_token:
@@ -40,7 +40,7 @@ def get_blogger_service():
     reraise=True
 )
 def generate_seo_review(title):
-    """গুগল এসইও ফ্রেন্ডলি বাংলা কন্টেন্ট জেনারেট (HTML ফরম্যাটে)"""
+    """গুগল SEO ফ্রেন্ডলি কন্টেন্ট জেনারেট (HTML ফরম্যাটে)"""
     prompt = f"""
     আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
     
@@ -73,7 +73,7 @@ def generate_seo_review(title):
     raise Exception("All Gemini models failed to process the request.")
 
 def post_to_facebook(title, product_url):
-    """ফেসবুক পেজে স্বয়ংক্রিয়ভাবে লিঙ্ক ও প্রোফাইল ক্রেডিটসহ পোস্ট শেয়ার"""
+    """ফেসবুক পেজে স্বয়ংক্রিয়ভাবে রিভিউ শেয়ার করার ফাংশন"""
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
         print("⚠️ Facebook Credentials missing in GitHub Secrets. Skipping FB Post.")
         return
@@ -106,6 +106,13 @@ def main():
     raw_url = product_data['url']
     image_url = product_data['image']
     
+    # ইমেজের ইউআরএল প্রোপারলি ফিক্স করা
+    if image_url:
+        if image_url.startswith('//'):
+            image_url = 'https:' + image_url
+        elif not image_url.startswith('http'):
+            image_url = 'https://www.bdstall.com/' + image_url.lstrip('/')
+    
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
     print(f"📦 Product Found: {title}")
@@ -115,16 +122,16 @@ def main():
     # ২. SEO রিভিউ জেনারেট
     review_html = generate_seo_review(title)
     
-    # ছবির HTML ট্যাগ
+    # ছবির HTML ট্যাগ (ব্লগার যেন ফার্স্ট ইমেজকে ফিচার্ড হিসেবে চিহ্নিত করতে পারে)
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
-        <a href="{image_url}" style="margin-left: 1em; margin-right: 1em;">
-            <img border="0" data-original-height="800" data-original-width="800" src="{image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
+        <a href="{image_url}" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
+            <img border="0" data-original-height="800" data-original-width="800" src="{image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px;" />
         </a>
     </div>
     """ if image_url else ''
     
-    # কল-টু-অ্যাকশন (CTA) বাটন
+    # Call to Action Button
     cta_button = f"""
     <div style="text-align: center; margin: 30px 0;">
         <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 বর্তমান দাম জানুন এবং অর্ডার করুন</a>
