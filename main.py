@@ -59,8 +59,7 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    # গুগল এপিআই এর বর্তমান লেটেস্ট অফিশিয়াল মডেল
-    models_to_try = ["gemini-3.6-flash"]
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
     
     for model_name in models_to_try:
         try:
@@ -116,10 +115,12 @@ def main():
     # ২. SEO রিভিউ জেনারেট
     review_html = generate_seo_review(title)
     
-    # ইমেজের HTML স্ট্রাকচার
-    img_tag = f"""
-    <div style="text-align: center; margin: 20px 0;">
-        <img src="{image_url}" alt="{title}" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block;" />
+    # ব্লগার থিমের ফিচার্ড ইমেজের জন্য উপযুক্ত স্ট্যান্ডার্ড HTML স্ট্রাকচার (একদম পোস্টের শুরুতে)
+    featured_img_tag = f"""
+    <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
+        <a href="{image_url}" style="margin-left: 1em; margin-right: 1em;">
+            <img border="0" data-original-height="800" data-original-width="800" src="{image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
+        </a>
     </div>
     """ if image_url else ''
     
@@ -130,7 +131,8 @@ def main():
     </div>
     """
     
-    formatted_content = f"{img_tag}{review_html}<br>{cta_button}"
+    # কন্টেন্টের একদম শুরুতে ফিচার্ড ছবি নিশ্চিত করা হয়েছে
+    formatted_content = f"{featured_img_tag}{review_html}<br>{cta_button}"
     
     # ৩. ব্লগারে অটো-পোস্ট
     blogger_service = get_blogger_service()
