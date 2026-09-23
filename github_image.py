@@ -1,8 +1,7 @@
 import requests
-import base64
 
 def get_working_image_url(raw_image_url):
-    """BDStall এর হটলিংক ব্লক বাইপাস করে ImgBB অথবা Base64 ইমেজে রূপান্তর"""
+    """BDStall hotlink bypass and upload to Telegra.ph Permanent CDN (No API Key needed)"""
     if not raw_image_url:
         return ""
         
@@ -15,38 +14,26 @@ def get_working_image_url(raw_image_url):
         raw_image_url = 'https://www.bdstall.com/' + raw_image_url.lstrip('/')
 
     try:
-        # জেনুইন ক্রোম ব্রাউজার সেজে ছবি ডাউনলোড
-        session = requests.Session()
+        # ১. BDStall থেকে জেনুইন ব্রাউজার সেজে ছবি ডাউনলোড
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             'Referer': 'https://www.bdstall.com/'
         }
+        res = requests.get(raw_image_url, headers=headers, timeout=20)
         
-        response = session.get(raw_image_url, headers=headers, timeout=20)
-        
-        if response.status_code == 200 and len(response.content) > 1000:
-            b64_image = base64.b64encode(response.content).decode('utf-8')
+        if res.status_code == 200 and len(res.content) > 500:
+            # ২. Telegra.ph ফ্রি সার্ভারে আপলোড (চিরস্থায়ী CDN লিঙ্ক)
+            files = {'file': ('product_image.jpg', res.content, 'image/jpeg')}
+            upload_res = requests.post('https://telegra.ph/upload', files=files, timeout=20)
             
-            # ImgBB তে সরাসরি আপলোড
-            imgbb_url = "https://api.imgbb.com/1/upload"
-            payload = {
-                "key": "8c7ec16bd83bd8fb06aa6e2b904eb120",
-                "image": b64_image
-            }
-            res = requests.post(imgbb_url, data=payload, timeout=20)
-            res_json = res.json()
-            
-            if res.status_code == 200 and res_json.get("success"):
-                hosted_url = res_json['data']['url']
-                print(f"✅ ImgBB Hosted Success: {hosted_url}")
-                return hosted_url
-            
-            # ImgBB ফেইল করলে ব্যাকআপ হিসেবে Base64 ব্যবহার
-            print("⚠️ ImgBB Upload Failed, Using Base64 Fallback")
-            return f"data:image/jpeg;base64,{b64_image}"
-            
+            if upload_res.status_code == 200:
+                data = upload_res.json()
+                if isinstance(data, list) and len(data) > 0 and 'src' in data[0]:
+                    permanent_url = 'https://telegra.ph' + data[0]['src']
+                    print(f"✅ Telegra.ph Permanent Image URL: {permanent_url}")
+                    return permanent_url
+                    
     except Exception as e:
-        print(f"❌ Image Processing Error: {e}")
+        print(f"❌ Image Upload Exception: {e}")
 
     return raw_image_url
