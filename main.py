@@ -3,7 +3,6 @@ import json
 import random
 import time
 import requests
-import urllib.parse
 from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -24,20 +23,15 @@ AFFILIATE_TAG = "?ref=379372"
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
-    """BDStall hotlink block bypassing via wsrv.nl CDN"""
+    """
+    BDStall hotlink block bypass bypass system.
+    Directly converts BDStall image URL into wsrv.nl CDN proxy URL.
+    """
     if not image_url:
         return None
-    try:
-        clean_url = image_url.replace("https://", "").replace("http://", "")
-        cdn_url = f"https://wsrv.nl/?url={clean_url}&output=jpg"
-        
-        res = requests.head(cdn_url, timeout=10)
-        if res.status_code == 200:
-            return cdn_url
-    except Exception as e:
-        print(f"⚠️ CDN Proxy Image conversion failed: {e}")
-        
-    return image_url
+    
+    clean_url = image_url.replace("https://", "").replace("http://", "")
+    return f"https://wsrv.nl/?url={clean_url}&output=jpg"
 
 def get_blogger_service():
     token_data = json.loads(TOKEN_JSON)
