@@ -3,7 +3,6 @@ import json
 import time
 import urllib.parse
 import requests
-from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -18,8 +17,6 @@ FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
 FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 AFFILIATE_TAG = "?ref=379372"
-
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
     """BDStall hotlink bypass CDN generator"""
@@ -54,24 +51,42 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    model_name = "gemini-3.6-flash"
-    max_retries = 2  # সময় নষ্ট না করতে ২ বারের বেশি চেষ্টা করবে না
+    # Direct REST API Call using Requests (Zero hanging risk, strict timeout)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {'Content-Type': 'json'}
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
     
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"🤖 Requesting content generation using model: {model_name} (Attempt {attempt}/{max_retries})")
-            chat = client.chats.create(model=model_name)
-            response = chat.send_message(prompt)
-            if response and response.text:
-                return response.text
-        except Exception as e:
-            err_msg = str(e)
-            print(f"⚠️ API Request error: {err_msg}")
-            if attempt < max_retries:
-                print("⏳ Waiting 5 seconds before last retry...")
-                time.sleep(5)
+    # Fallback endpoint if 2.5 fails
+    models = [
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    ]
 
-    raise Exception("❌ Gemini API server is hanging or unavailable. Execution stopped to save time.")
+    for model_url in models:
+        endpoint = f"{model_url}?key={GEMINI_API_KEY}"
+        try:
+            print(f"🤖 Requesting API via Direct REST Endpoint...")
+            response = requests.post(endpoint, json=payload, timeout=20)
+            res_json = response.json()
+            
+            if response.status_code == 200:
+                text = res_json['candidates'][0]['content']['parts'][0]['text']
+                return text
+            else:
+                print(f"⚠️ API Error ({response.status_code}): {res_json}")
+                time.sleep(3)
+        except requests.exceptions.Timeout:
+            print("⏳ Timeout reached (20s). Retrying...")
+            time.sleep(2)
+        except Exception as e:
+            print(f"⚠️ Request Failed: {e}")
+            time.sleep(2)
+
+    raise Exception("❌ Unable to generate content from Gemini REST API.")
 
 def post_to_facebook(title, product_url):
     """Facebook Page Auto Post System"""
