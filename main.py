@@ -54,9 +54,8 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # গুগল সার্ভিস নির্দেশিত একমাত্র সচল মডেল
     model_name = "gemini-3.6-flash"
-    max_retries = 5
+    max_retries = 2  # সময় নষ্ট না করতে ২ বারের বেশি চেষ্টা করবে না
     
     for attempt in range(1, max_retries + 1):
         try:
@@ -68,16 +67,11 @@ def generate_seo_review(title):
         except Exception as e:
             err_msg = str(e)
             print(f"⚠️ API Request error: {err_msg}")
-            
-            # Google Server High Demand (503) অথবা Rate Limit (429) এর জন্য অপেক্ষা
-            if "503" in err_msg or "UNAVAILABLE" in err_msg or "429" in err_msg:
-                wait_time = attempt * 10
-                print(f"⏳ Google API high demand or busy. Retrying in {wait_time} seconds...")
-                time.sleep(wait_time)
-            else:
+            if attempt < max_retries:
+                print("⏳ Waiting 5 seconds before last retry...")
                 time.sleep(5)
 
-    raise Exception("❌ Google API Service is currently unresponsive after maximum retries.")
+    raise Exception("❌ Gemini API server is hanging or unavailable. Execution stopped to save time.")
 
 def post_to_facebook(title, product_url):
     """Facebook Page Auto Post System"""
@@ -102,7 +96,7 @@ def post_to_facebook(title, product_url):
     }
     
     try:
-        response = requests.post(url, data=payload, timeout=15)
+        response = requests.post(url, data=payload, timeout=10)
         res_data = response.json()
         if response.status_code == 200 and 'id' in res_data:
             print(f"✅ Successfully posted to Facebook Page! Post ID: {res_data['id']}")
