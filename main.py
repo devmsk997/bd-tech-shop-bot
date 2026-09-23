@@ -3,10 +3,10 @@ import json
 import random
 import time
 import requests
+from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # keyword_research.py ফাইল থেকে স্ক্র্যাপ করার ফাংশন ইমপোর্ট
@@ -22,9 +22,8 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 AFFILIATE_TAG = "?ref=379372"
 
-# Gemini API Configure
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+# New Google GenAI Client Initialize
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_blogger_service():
     """Blogger API কানেক্ট করার ফাংশন"""
@@ -60,12 +59,14 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
     
     for model_name in models_to_try:
         try:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
             return response.text
         except Exception as e:
             print(f"⚠️ Model {model_name} failed ({e}). Switching to next model...")
