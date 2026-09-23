@@ -25,19 +25,14 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
     """
-    BDStall hotlink block bypassing system.
-    wsrv.nl CDN use kore image-ke public & clean HTTPS image URL-e convert kore,
-    jens Blogger ebong Facebook thumbnail-e 100% feature image dekhae.
+    BDStall hotlink block bypassing system via wsrv.nl CDN.
     """
     if not image_url:
         return None
     try:
-        # Image URL purify
         clean_url = image_url.replace("https://", "").replace("http://", "")
-        # wsrv.nl Global Image CDN Proxy URL
         cdn_url = f"https://wsrv.nl/?url={clean_url}&output=jpg"
         
-        # Test image accessibility
         res = requests.head(cdn_url, timeout=10)
         if res.status_code == 200:
             return cdn_url
@@ -56,7 +51,7 @@ def get_blogger_service():
 
 @retry(
     stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=5, min=15, max=90),
+    wait=wait_exponential(multiplier=5, min=15, max=120),
     reraise=True
 )
 def generate_seo_review(title):
@@ -77,19 +72,31 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    model_name = "gemini-3.6-flash"
-    
-    try:
-        chat = client.chats.create(model=model_name)
-        response = chat.send_message(prompt)
-        return response.text
-    except Exception as e:
-        err_msg = str(e)
-        print(f"⚠️ API Request error: {err_msg}")
-        if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-            print("⏳ API Free Tier Quota Exceeded. Pausing for 30 seconds before retry...")
-            time.sleep(30)
-        raise e
+    # প্রাইমারি ও অল্টারনেটিভ মডেল
+    models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash"]
+    last_exception = None
+
+    for model_name in models_to_try:
+        try:
+            print(f"🤖 Requesting content generation using model: {model_name}")
+            chat = client.chats.create(model=model_name)
+            response = chat.send_message(prompt)
+            return response.text
+        except Exception as e:
+            err_msg = str(e)
+            last_exception = e
+            print(f"⚠️ API Request error for {model_name}: {err_msg}")
+            
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                print("⏳ API Free Tier Quota Exceeded for this model. Pausing for 60 seconds...")
+                time.sleep(60)
+            elif "503" in err_msg or "UNAVAILABLE" in err_msg:
+                print("⚠️ High demand on model, switching/retrying...")
+                time.sleep(15)
+            continue
+            
+    if last_exception:
+        raise last_exception
 
 def post_to_facebook(title, product_url):
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
@@ -131,7 +138,6 @@ def main():
         elif not raw_image_url.startswith('http'):
             raw_image_url = 'https://www.bdstall.com/' + raw_image_url.lstrip('/')
             
-    # BDStall hotlinking bypass process
     working_image_url = get_caching_cdn_image_url(raw_image_url)
     
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
@@ -142,7 +148,6 @@ def main():
     
     review_html = generate_seo_review(title)
     
-    # Blogger standard featured image tag
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
         <a href="{working_image_url}" style="margin-left: 1em; margin-right: 1em;">
