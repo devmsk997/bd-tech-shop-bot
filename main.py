@@ -17,7 +17,6 @@ TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
 AFFILIATE_TAG = "?ref=379372"
 
 def get_caching_cdn_image_url(image_url):
-    """BDStall এর সরাসরি ছবি ব্লক বাইপাস করার জন্য CDN লিঙ্ক"""
     if not image_url:
         return None
     encoded_url = urllib.parse.quote(image_url, safe='')
@@ -52,13 +51,15 @@ def generate_seo_review(title):
         }]
     }
     
-    model_name = "gemini-3.6-flash"
+    # আফিশিয়াল স্থিতিশীল মডেল নেম
+    model_name = "gemini-1.5-flash"
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    for attempt in range(1, 4):
+    # এপিআই লিমিটের জন্য ৫ বার রিট্রাই লুপ
+    for attempt in range(1, 6):
         try:
             print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            response = requests.post(endpoint, json=payload, timeout=35)
+            response = requests.post(endpoint, json=payload, timeout=60)
             res_json = response.json()
             
             if response.status_code == 200:
@@ -67,19 +68,20 @@ def generate_seo_review(title):
             else:
                 err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
                 print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+                # ৪২৯ এরর আসলে একটু বেশি সময় (২৫ সেকেন্ড) বিরতি দেওয়া হবে
                 if response.status_code in [503, 429]:
-                    print("⏳ Server busy or rate limited. Retrying in 10 seconds...")
-                    time.sleep(10)
+                    print("⏳ Rate limited. Retrying in 25 seconds...")
+                    time.sleep(25)
                 else:
                     break
         except requests.exceptions.Timeout:
-            print("⏳ Request timed out. Retrying...")
-            time.sleep(5)
+            print("⏳ Request timed out. Retrying in 10 seconds...")
+            time.sleep(10)
         except Exception as e:
             print(f"⚠️ Exception: {e}")
-            time.sleep(3)
+            time.sleep(5)
 
-    raise Exception("❌ Gemini API failed to return response.")
+    raise Exception("❌ Gemini API failed to return response after retries.")
 
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
