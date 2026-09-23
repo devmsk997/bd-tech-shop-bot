@@ -51,40 +51,43 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # Direct REST API Call using Requests (Zero hanging risk, strict timeout)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-    headers = {'Content-Type': 'json'}
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
         }]
     }
     
-    # Fallback endpoint if 2.5 fails
+    # গুগলের বর্তমানে সক্রিয় ও অনুমোদিত সচল মডেলসমূহ
     models = [
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+        "gemini-3.6-flash",
+        "gemini-3.1-pro-preview"
     ]
 
-    for model_url in models:
-        endpoint = f"{model_url}?key={GEMINI_API_KEY}"
-        try:
-            print(f"🤖 Requesting API via Direct REST Endpoint...")
-            response = requests.post(endpoint, json=payload, timeout=20)
-            res_json = response.json()
-            
-            if response.status_code == 200:
-                text = res_json['candidates'][0]['content']['parts'][0]['text']
-                return text
-            else:
-                print(f"⚠️ API Error ({response.status_code}): {res_json}")
+    for model_name in models:
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        
+        for attempt in range(1, 3):
+            try:
+                print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
+                response = requests.post(endpoint, json=payload, timeout=25)
+                res_json = response.json()
+                
+                if response.status_code == 200:
+                    text = res_json['candidates'][0]['content']['parts'][0]['text']
+                    return text
+                else:
+                    print(f"⚠️ API Error ({response.status_code}): {res_json}")
+                    if response.status_code in [503, 429]:
+                        print("⏳ Server busy or rate limited. Retrying in 10 seconds...")
+                        time.sleep(10)
+                    else:
+                        break
+            except requests.exceptions.Timeout:
+                print("⏳ Timeout reached (25s). Retrying...")
+                time.sleep(5)
+            except Exception as e:
+                print(f"⚠️ Request Failed: {e}")
                 time.sleep(3)
-        except requests.exceptions.Timeout:
-            print("⏳ Timeout reached (20s). Retrying...")
-            time.sleep(2)
-        except Exception as e:
-            print(f"⚠️ Request Failed: {e}")
-            time.sleep(2)
 
     raise Exception("❌ Unable to generate content from Gemini REST API.")
 
@@ -111,7 +114,7 @@ def post_to_facebook(title, product_url):
     }
     
     try:
-        response = requests.post(url, data=payload, timeout=10)
+        response = requests.post(url, data=payload, timeout=12)
         res_data = response.json()
         if response.status_code == 200 and 'id' in res_data:
             print(f"✅ Successfully posted to Facebook Page! Post ID: {res_data['id']}")
