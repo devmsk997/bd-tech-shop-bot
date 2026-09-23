@@ -2,10 +2,10 @@ name: BD TECH SHOP REVIEW
 
 on:
   schedule:
-    - cron: '17 3 * * *'  # বাংলাদেশ সময় সকাল ৯:১৭ (UTC 03:17)
-    - cron: '17 7 * * *'  # বাংলাদেশ সময় দুপুর ১:১৭ (UTC 07:17)
-    - cron: '17 11 * * *' # বাংলাদেশ সময় বিকাল ৫:১৭ (UTC 11:17)
-    - cron: '17 15 * * *' # বাংলাদেশ সময় রাত ৯:১৭ (UTC 15:17)
+    - cron: '17 3 * * *'   # Bangladesh Time 9:17 AM (UTC 03:17)
+    - cron: '17 7 * * *'   # Bangladesh Time 1:17 PM (UTC 07:17)
+    - cron: '17 11 * * *'  # Bangladesh Time 5:17 PM (UTC 11:17)
+    - cron: '17 15 * * *'  # Bangladesh Time 9:17 PM (UTC 15:17)
   workflow_dispatch:
 
 permissions:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20   # ১০ মিনিটের জায়গায় ২০ মিনিট করা হলো
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -38,6 +38,4 @@ jobs:
           BLOG_ID: ${{ secrets.BLOG_ID }}
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
           GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
-          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
-          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
         run: python main.py
