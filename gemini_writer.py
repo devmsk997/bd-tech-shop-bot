@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+import re
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
@@ -28,12 +29,9 @@ def generate_seo_review(title):
     model_name = "gemini-3.6-flash"
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    wait_times = [10, 25, 45, 60, 90]
-    
     for attempt in range(1, 6):
         try:
             print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            # timeout বাড়িয়ে ৯০ সেকেন্ড করা হয়েছে
             response = requests.post(endpoint, json=payload, timeout=90)
             res_json = response.json()
             
@@ -43,17 +41,22 @@ def generate_seo_review(title):
             else:
                 err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
                 print(f"⚠️ API Error ({response.status_code}): {err_msg}")
-                delay = wait_times[attempt - 1]
-                print(f"⏳ Waiting {delay} seconds before retrying...")
-                time.sleep(delay)
+                
+                # গুগল এপিআই কত সেকেন্ড ওয়েট করতে বলছে তা লগ থেকে বের করা
+                retry_match = re.search(r"Please retry in (\d+\.?\d*)s", err_msg)
+                if retry_match:
+                    wait_seconds = float(retry_match.group(1)) + 5  # সেফটির জন্য আরও ৫ সেকেন্ড যোগ
+                else:
+                    wait_seconds = 45.0
+                
+                print(f"⏳ Dynamic Wait: Sleeping for {wait_seconds:.1f} seconds as instructed by Google...")
+                time.sleep(wait_seconds)
 
         except requests.exceptions.Timeout:
-            delay = wait_times[attempt - 1]
-            print(f"⏳ Request timed out. Waiting {delay} seconds before retrying...")
-            time.sleep(delay)
+            print("⏳ Request timed out. Waiting 20 seconds...")
+            time.sleep(20)
         except Exception as e:
-            delay = wait_times[attempt - 1]
-            print(f"⚠️ Exception: {e}. Waiting {delay} seconds...")
-            time.sleep(delay)
+            print(f"⚠️ Exception: {e}. Waiting 15 seconds...")
+            time.sleep(15)
 
-    raise Exception("❌ Gemini API failed after retries due to server load/rate limit.")
+    raise Exception("❌ Gemini API failed after retries due to rate limit.")
