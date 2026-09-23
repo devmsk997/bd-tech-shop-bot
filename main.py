@@ -7,7 +7,6 @@ from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from keyword_research import get_high_search_product
 
@@ -23,12 +22,9 @@ AFFILIATE_TAG = "?ref=379372"
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
-    """
-    BDStall hotlink block bypass system using wsrv.nl CDN.
-    """
+    """BDStall image bypass system with CDN"""
     if not image_url:
         return None
-    
     encoded_url = urllib.parse.quote(image_url, safe='')
     return f"https://wsrv.nl/?url={encoded_url}&output=jpg&n=-1"
 
@@ -40,11 +36,6 @@ def get_blogger_service():
         creds.refresh(Request())
     return build('blogger', 'v3', credentials=creds)
 
-@retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=2, min=5, max=60),
-    reraise=True
-)
 def generate_seo_review(title):
     prompt = f"""
     আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
@@ -63,8 +54,8 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # সাপোর্ট করা সক্রিয় মডেলসমূহ
-    models_to_try = ["gemini-3.6-flash", "gemini-3.1-pro-preview"]
+    # সচল ও কোটা ফ্রেন্ডলি মডেলের তালিকা
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-3.6-flash"]
     last_error = None
 
     for model_name in models_to_try:
@@ -78,20 +69,14 @@ def generate_seo_review(title):
             err_msg = str(e)
             last_error = e
             print(f"⚠️ API Request error for {model_name}: {err_msg}")
-            
-            # Rate limit বা High demand থাকলে ১০ সেকেন্ড অপেক্ষা করে পরের মডেলে যাবে
-            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "503" in err_msg:
-                print("⏳ Quota / Server limit reached. Waiting 10 seconds before retrying...")
-                time.sleep(10)
+            time.sleep(3) # দ্রুত পরবর্তী মডেলে চলে যাবে, সময় নষ্ট করবে না
             continue
 
     if last_error:
         raise last_error
 
-def post_to_facebook(title, product_url, image_url):
-    """
-    Facebook Page Graph API-তে লিংক পোস্ট করার ফাংশন।
-    """
+def post_to_facebook(title, product_url):
+    """Facebook Page Post System"""
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
         print("⚠️ Facebook Credentials missing in GitHub Secrets. Skipping FB Post.")
         return
@@ -113,7 +98,7 @@ def post_to_facebook(title, product_url, image_url):
     }
     
     try:
-        response = requests.post(url, data=payload, timeout=15)
+        response = requests.post(url, data=payload, timeout=10)
         res_data = response.json()
         if response.status_code == 200 and 'id' in res_data:
             print(f"✅ Successfully posted to Facebook Page! Post ID: {res_data['id']}")
@@ -130,7 +115,6 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ইমেজ URL ফরম্যাটিং
     if raw_image_url:
         if raw_image_url.startswith('//'):
             raw_image_url = 'https:' + raw_image_url
@@ -177,8 +161,8 @@ def main():
     blog_post_url = res.get('url')
     print(f"✅ Successfully Published to Blogger: {blog_post_url}")
 
-    # ফেসবুক পেজে পোস্ট করা
-    post_to_facebook(title, blog_post_url, working_image_url)
+    # ফেসবুক পেজে অটো-পোস্ট
+    post_to_facebook(title, blog_post_url)
 
 if __name__ == "__main__":
     main()
