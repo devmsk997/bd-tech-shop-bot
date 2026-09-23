@@ -51,37 +51,40 @@ def generate_seo_review(title):
         }]
     }
     
-    # আফিশিয়াল স্থিতিশীল মডেল নেম
-    model_name = "gemini-1.5-flash"
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
-
-    # এপিআই লিমিটের জন্য ৫ বার রিট্রাই লুপ
-    for attempt in range(1, 6):
-        try:
-            print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            response = requests.post(endpoint, json=payload, timeout=60)
-            res_json = response.json()
-            
-            if response.status_code == 200:
-                text = res_json['candidates'][0]['content']['parts'][0]['text']
-                return text
-            else:
-                err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
-                print(f"⚠️ API Error ({response.status_code}): {err_msg}")
-                # ৪২৯ এরর আসলে একটু বেশি সময় (২৫ সেকেন্ড) বিরতি দেওয়া হবে
-                if response.status_code in [503, 429]:
-                    print("⏳ Rate limited. Retrying in 25 seconds...")
-                    time.sleep(25)
+    # বর্তমান কার্যকরী মডেল তালিকা
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    
+    for model_name in models_to_try:
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        
+        for attempt in range(1, 4):
+            try:
+                print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
+                response = requests.post(endpoint, json=payload, timeout=40)
+                res_json = response.json()
+                
+                if response.status_code == 200:
+                    text = res_json['candidates'][0]['content']['parts'][0]['text']
+                    return text
                 else:
-                    break
-        except requests.exceptions.Timeout:
-            print("⏳ Request timed out. Retrying in 10 seconds...")
-            time.sleep(10)
-        except Exception as e:
-            print(f"⚠️ Exception: {e}")
-            time.sleep(5)
+                    err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                    print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+                    if response.status_code in [503, 429]:
+                        print("⏳ Rate limited or Busy. Retrying in 15 seconds...")
+                        time.sleep(15)
+                    elif response.status_code == 404:
+                        print(f"⚠️ Model {model_name} not found, switching model...")
+                        break
+                    else:
+                        break
+            except requests.exceptions.Timeout:
+                print("⏳ Request timed out. Retrying in 5 seconds...")
+                time.sleep(5)
+            except Exception as e:
+                print(f"⚠️ Exception: {e}")
+                time.sleep(3)
 
-    raise Exception("❌ Gemini API failed to return response after retries.")
+    raise Exception("❌ Gemini API failed to return response after all model attempts.")
 
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
