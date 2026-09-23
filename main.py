@@ -35,20 +35,17 @@ def get_blogger_service():
 
 def generate_seo_review(title):
     prompt = f"""
-    আপনি একজন পেশাদার SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি ১০০% SEO Optimized রিভিউ পোস্ট লিখুন।
+    আপনি একজন SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য সংক্ষিপ্ত ও আকর্ষণীয় রিভিউ পোস্ট লিখুন।
+    প্রোডাক্ট: {title}
     
-    প্রোডাক্টের নাম: {title}
-    
-    গুরুত্বপূর্ণ নিয়ম ও ফরম্যাটিং নির্দেশনাবলী:
-    ১. কোনো অবস্থাতেই কোনো স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না। 
-    ২. কোনো জায়গায় বোল্ড বা লিস্ট বোঝাতে সরাসরি HTML ট্যাগ ব্যবহার করুন। যেমন: <h2>, <h3>, <b>, <ul>, <li> ইত্যাদি।
-    ৩. যেখানে বুলেট পয়েন্ট দেওয়ার দরকার সেখানে কেবল HTML <ul> এবং <li> ট্যাগ ব্যবহার করুন।
-    ৪. পোস্টের শুরুতে ২ লাইনের চমৎকার ভূমিকা দিন।
-    ৫. নিচের সেকশনগুলো HTML হেডারে সাজিয়ে লিখুন:
-       - <h2>{title} এর বিস্তারিত ফিচার ও স্পেসিফিকেশন</h2> (bullet points হিসেবে <ul><li>...</li></ul> দিন)
+    নিয়মাবলী:
+    ১. কোনো স্টার (*) বা হ্যাশ (#) ব্যবহার করবেন না।
+    ২. ফরম্যাটিংয়ের জন্য কেবল HTML ট্যাগ (<h2>, <h3>, <b>, <ul>, <li>) ব্যবহার করুন।
+    ৩. সেকশনসমূহ:
+       - <h2>{title} এর স্পেসিফিকেশন</h2>
        - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
-       - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থান</h2>
-       - <h2>আমাদের চূড়ান্ত মতামত</h2>
+       - <h2>বাংলাদেশে {title} এর দাম</h2>
+       - <h2>আমাদের মতামত</h2>
     """
     
     payload = {
@@ -57,40 +54,35 @@ def generate_seo_review(title):
         }]
     }
     
-    # কোটা বা লিমিট ফ্রি দ্রুত কাজ করা মডেলসমূহ
-    models = [
-        "gemini-2.5-flash",
-        "gemini-1.5-flash"
-    ]
+    # গুগলের অফিসিয়াল বর্তমানে সচল মডেল
+    model_name = "gemini-3.6-flash"
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    for model_name in models:
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
-        
-        for attempt in range(1, 3):
-            try:
-                print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-                # Time out spent to 45 seconds to avoid timeout
-                response = requests.post(endpoint, json=payload, timeout=45)
-                res_json = response.json()
-                
-                if response.status_code == 200:
-                    text = res_json['candidates'][0]['content']['parts'][0]['text']
-                    return text
+    for attempt in range(1, 4):
+        try:
+            print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
+            response = requests.post(endpoint, json=payload, timeout=30)
+            res_json = response.json()
+            
+            if response.status_code == 200:
+                text = res_json['candidates'][0]['content']['parts'][0]['text']
+                return text
+            else:
+                err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+                if response.status_code in [503, 429]:
+                    print("⏳ Server busy or rate limited. Retrying in 10 seconds...")
+                    time.sleep(10)
                 else:
-                    print(f"⚠️ API Error ({response.status_code}): {res_json.get('error', {}).get('message')}")
-                    if response.status_code in [503, 429]:
-                        print("⏳ Rate limited or busy. Retrying in 5 seconds...")
-                        time.sleep(5)
-                    else:
-                        break
-            except requests.exceptions.Timeout:
-                print("⏳ Timeout reached. Trying next attempt...")
-                time.sleep(3)
-            except Exception as e:
-                print(f"⚠️ Request Failed: {e}")
-                time.sleep(2)
+                    break
+        except requests.exceptions.Timeout:
+            print("⏳ Request timed out. Retrying...")
+            time.sleep(5)
+        except Exception as e:
+            print(f"⚠️ Exception: {e}")
+            time.sleep(3)
 
-    raise Exception("❌ Unable to generate content from Gemini REST API.")
+    raise Exception("❌ Gemini API failed to return response.")
 
 def post_to_facebook(title, product_url):
     """Facebook Page Auto Post System"""
