@@ -41,8 +41,8 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 @retry(
-    stop=stop_after_attempt(3), # সর্বোচ্চ ৩ বার ট্রাই করবে
-    wait=wait_fixed(5),         # মাত্র ৫ সেকেন্ড অপেক্ষা করবে
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(10),
     reraise=True
 )
 def generate_seo_review(title):
@@ -63,14 +63,13 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    model_name = "gemini-2.5-flash"
+    # গুগলের নির্দেশিত সঠিক মডেল
+    model_name = "gemini-3.6-flash"
     
     try:
         print(f"🤖 Requesting content generation using model: {model_name}")
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-        )
+        chat = client.chats.create(model=model_name)
+        response = chat.send_message(prompt)
         return response.text
     except Exception as e:
         err_msg = str(e)
