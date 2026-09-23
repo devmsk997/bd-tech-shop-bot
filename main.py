@@ -18,13 +18,6 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 AFFILIATE_TAG = "?ref=379372"
 
-def get_caching_cdn_image_url(image_url):
-    """BDStall hotlink bypass CDN generator"""
-    if not image_url:
-        return None
-    encoded_url = urllib.parse.quote(image_url, safe='')
-    return f"https://wsrv.nl/?url={encoded_url}&output=jpg&n=-1"
-
 def get_blogger_service():
     token_data = json.loads(TOKEN_JSON)
     creds = Credentials.from_authorized_user_info(token_data)
@@ -54,7 +47,6 @@ def generate_seo_review(title):
         }]
     }
     
-    # গুগলের অফিসিয়াল বর্তমানে সচল মডেল
     model_name = "gemini-3.6-flash"
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
@@ -124,6 +116,7 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
+    # ইমেজ লিঙ্ক প্রসেসিং (Direct Image CDN Fix)
     if raw_image_url:
         if raw_image_url.startswith('//'):
             raw_image_url = 'https:' + raw_image_url
@@ -132,7 +125,10 @@ def main():
         elif not raw_image_url.startswith('http'):
             raw_image_url = 'https://www.bdstall.com/' + raw_image_url.lstrip('/')
             
-    working_image_url = get_caching_cdn_image_url(raw_image_url)
+        # Blogger Hotlink Bypass Image Service
+        working_image_url = f"https://images.weserv.nl/?url={urllib.parse.quote(raw_image_url)}&w=600&output=jpg"
+    else:
+        working_image_url = ""
     
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
