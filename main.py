@@ -15,18 +15,18 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ২. ইমেজ ও অ্যাফিলিয়েট লিঙ্ক প্রসেস
+    # ২. ইমেজ প্রসেসিং (ImgBB হোস্টিং)
     working_image_url = get_working_image_url(raw_image_url)
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
     print(f"📦 Product Found: {title}")
-    print(f"🖼️ Working Image URL: {working_image_url}")
+    print(f"🖼️ Final Image URL: {working_image_url}")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
     # ৩. কন্টেন্ট তৈরি (Gemini API)
     review_html = generate_seo_review(title)
     
-    # ৪. ব্লগার স্ট্যান্ডার্ড ফিচারড ইমেজ লেআউট তৈরি
+    # ৪. ব্লগার ফিচারড ইমেজ লেআউট
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-top: 10px; margin-bottom: 25px;">
         <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="margin-left: 1em; margin-right: 1em;">
