@@ -59,7 +59,7 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.6-flash"]
     
     for model_name in models_to_try:
         try:
@@ -80,7 +80,8 @@ def post_to_facebook(title, product_url):
 
     url = f"https://graph.facebook.com/v18.0/{FB_PAGE_ID}/feed"
     
-    message = f"🔥 New Tech Product Review!\n\n📌 {title}\n\n👉 আমাদের ব্লগে বিস্তারিত রিভিউ এবং অরিজিনাল দাম দেখে নিন:"
+    # এখানে প্রোফাইল লিঙ্ক সংযুক্ত করা হয়েছে
+    message = f"🔥 New Tech Product Review!\n\n📌 {title}\n\n👉 আমাদের ব্লগে বিস্তারিত রিভিউ এবং অরিজিনাল দাম দেখে নিন:\n{product_url}\n\n👤 Post Managed By: Md Solayman\n🔗 Profile: https://www.facebook.com/MdSolayman996/"
     
     payload = {
         'message': message,
@@ -115,7 +116,7 @@ def main():
     # ২. SEO রিভিউ জেনারেট
     review_html = generate_seo_review(title)
     
-    # ব্লগার থিমের ফিচার্ড ইমেজের জন্য উপযুক্ত স্ট্যান্ডার্ড HTML স্ট্রাকচার (একদম পোস্টের শুরুতে)
+    # ফিচার্ড ইমেজের HTML স্ট্রাকচার
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
         <a href="{image_url}" style="margin-left: 1em; margin-right: 1em;">
@@ -131,7 +132,6 @@ def main():
     </div>
     """
     
-    # কন্টেন্টের একদম শুরুতে ফিচার্ড ছবি নিশ্চিত করা হয়েছে
     formatted_content = f"{featured_img_tag}{review_html}<br>{cta_button}"
     
     # ৩. ব্লগারে অটো-পোস্ট
