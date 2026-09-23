@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import urllib.parse
 import requests
 from google import genai
 from google.oauth2.credentials import Credentials
@@ -24,13 +25,14 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 def get_caching_cdn_image_url(image_url):
     """
     BDStall hotlink block bypass system.
-    Directly converts BDStall image URL into wsrv.nl CDN proxy URL.
+    Directly converts BDStall image URL into wsrv.nl CDN proxy URL with proper URL encoding.
     """
     if not image_url:
         return None
     
-    clean_url = image_url.replace("https://", "").replace("http://", "")
-    return f"https://wsrv.nl/?url={clean_url}&output=jpg"
+    # URL সঠিকভাবে এনকোড করা হচ্ছে যাতে CDN সার্ভার সঠিক ইমেজ খুঁজে পায়
+    encoded_url = urllib.parse.quote(image_url, safe='')
+    return f"https://wsrv.nl/?url={encoded_url}&output=jpg&n=-1"
 
 def get_blogger_service():
     token_data = json.loads(TOKEN_JSON)
@@ -41,8 +43,8 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 @retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=3, min=15, max=90),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=10, max=60),
     reraise=True
 )
 def generate_seo_review(title):
@@ -63,8 +65,7 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # প্রাইমারি এবং অল্টারনেটিভ ফলব্যাক মডেলের লিস্ট
-    models_to_try = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    models_to_try = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
     last_error = None
 
     for model_name in models_to_try:
@@ -79,11 +80,11 @@ def generate_seo_review(title):
             print(f"⚠️ API Request error for {model_name}: {err_msg}")
             
             if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-                print("⏳ Quota Limit / Rate limit reached. Waiting 35 seconds before trying next model...")
-                time.sleep(35)
+                print("⏳ Quota Limit reached. Trying next model...")
+                time.sleep(5)
             elif "503" in err_msg or "UNAVAILABLE" in err_msg:
-                print("⏳ Google API High Demand. Waiting 15 seconds...")
-                time.sleep(15)
+                print("⏳ Google API Busy. Waiting 10 seconds...")
+                time.sleep(10)
             continue
 
     if last_error:
@@ -121,6 +122,7 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
+    # ইমেজ URL ফরম্যাটিং ঠিক করা
     if raw_image_url:
         if raw_image_url.startswith('//'):
             raw_image_url = 'https:' + raw_image_url
@@ -139,9 +141,10 @@ def main():
     
     review_html = generate_seo_review(title)
     
+    # Blogger এর জন্য স্ট্যান্ডার্ড HTML Image Tag
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
-        <a href="{working_image_url}" style="margin-left: 1em; margin-right: 1em;">
+        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored">
             <img border="0" src="{working_image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
         </a>
     </div>
@@ -153,7 +156,7 @@ def main():
     </div>
     """
     
-    formatted_content = f"{featured_img_tag}{review_html}<br>{cta_button}"
+    formatted_content = f"{featured_img_tag}\n{review_html}\n<br>\n{cta_button}"
     
     blogger_service = get_blogger_service()
     body = {
