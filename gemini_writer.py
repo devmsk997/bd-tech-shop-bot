@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+import re
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
@@ -25,22 +26,32 @@ def generate_seo_review(title):
         }]
     }
     
-    # দ্রুত কাজ করার জন্য লাইটওয়েট মডেল
-    model_name = "gemini-2.5-flash-lite"
+    # গুগল এর রিকমেন্ড করা লাইটওয়েট ফাস্ট মডেল
+    model_name = "gemini-3.5-flash-lite"
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    for attempt in range(1, 4):
+    for attempt in range(1, 6):
         try:
             print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            response = requests.post(endpoint, json=payload, timeout=30)
+            response = requests.post(endpoint, json=payload, timeout=60)
             res_json = response.json()
             
             if response.status_code == 200:
                 text = res_json['candidates'][0]['content']['parts'][0]['text']
                 return text
             else:
-                print(f"⚠️ API Response Error: {res_json}")
-                time.sleep(10)
+                err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+                
+                # গুগল যত সেকেন্ড থামতে বলবে ঠিক তত সেকেন্ড ওয়েট করবে
+                retry_match = re.search(r"Please retry in (\d+\.?\d*)s", err_msg)
+                if retry_match:
+                    wait_seconds = float(retry_match.group(1)) + 3
+                else:
+                    wait_seconds = 20.0
+                
+                print(f"⏳ Waiting for {wait_seconds:.1f} seconds...")
+                time.sleep(wait_seconds)
 
         except Exception as e:
             print(f"⚠️ Exception: {e}. Waiting 10 seconds...")
