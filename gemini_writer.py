@@ -28,12 +28,13 @@ def generate_seo_review(title):
     model_name = "gemini-3.6-flash"
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    wait_times = [15, 30, 45, 60]
+    wait_times = [10, 25, 45, 60, 90]
     
-    for attempt in range(1, 5):
+    for attempt in range(1, 6):
         try:
             print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            response = requests.post(endpoint, json=payload, timeout=45)
+            # timeout বাড়িয়ে ৯০ সেকেন্ড করা হয়েছে
+            response = requests.post(endpoint, json=payload, timeout=90)
             res_json = response.json()
             
             if response.status_code == 200:
@@ -42,14 +43,17 @@ def generate_seo_review(title):
             else:
                 err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
                 print(f"⚠️ API Error ({response.status_code}): {err_msg}")
-                if response.status_code in [503, 429]:
-                    delay = wait_times[attempt - 1]
-                    print(f"⏳ Quota Exceeded/Rate Limited. Waiting {delay} seconds...")
-                    time.sleep(delay)
-                else:
-                    break
-        except Exception as e:
-            print(f"⚠️ Exception: {e}")
-            time.sleep(5)
+                delay = wait_times[attempt - 1]
+                print(f"⏳ Waiting {delay} seconds before retrying...")
+                time.sleep(delay)
 
-    raise Exception("❌ Gemini API failed after retries.")
+        except requests.exceptions.Timeout:
+            delay = wait_times[attempt - 1]
+            print(f"⏳ Request timed out. Waiting {delay} seconds before retrying...")
+            time.sleep(delay)
+        except Exception as e:
+            delay = wait_times[attempt - 1]
+            print(f"⚠️ Exception: {e}. Waiting {delay} seconds...")
+            time.sleep(delay)
+
+    raise Exception("❌ Gemini API failed after retries due to server load/rate limit.")
