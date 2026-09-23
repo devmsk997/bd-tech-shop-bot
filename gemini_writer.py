@@ -1,25 +1,55 @@
+import os
 import time
-from google import genai
+import requests
 
-def generate_content_with_gemini(client, prompt):
-    model_name = "gemini-3.6-flash"
-    max_retries = 5
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+def generate_seo_review(title):
+    prompt = f"""
+    আপনি একজন SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি সংক্ষিপ্ত ও আকর্ষণীয় রিভিউ পোস্ট লিখুন।
+    প্রোডাক্টের নাম: {title}
     
-    for attempt in range(1, max_retries + 1):
+    গুরুত্বপূর্ণ নিয়মাবলী:
+    ১. কোনো অবস্থাতেই স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না।
+    ২. ফরম্যাটিংয়ের জন্য কেবল HTML ট্যাগ (<h2>, <h3>, <b>, <ul>, <li>) ব্যবহার করুন।
+    ৩. নিচের সেকশনগুলো সাজিয়ে লিখুন:
+       - <h2>{title} এর বিস্তারিত স্পেসিফিকেশন</h2>
+       - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
+       - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থা</h2>
+       - <h2>আমাদের চূড়ান্ত মতামত</h2>
+    """
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    model_name = "gemini-3.6-flash"
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+
+    wait_times = [15, 30, 45, 60]
+    
+    for attempt in range(1, 5):
         try:
-            print(f"🤖 Generating content with model: {model_name} (Attempt {attempt}/{max_retries})")
-            chat = client.chats.create(model=model_name)
-            response = chat.send_message(prompt)
-            if response and response.text:
-                return response.text
-        except Exception as e:
-            err_msg = str(e)
-            print(f"⚠️ Error: {err_msg}")
-            if "503" in err_msg or "UNAVAILABLE" in err_msg or "429" in err_msg:
-                wait_time = attempt * 10
-                print(f"⏳ Waiting {wait_time} seconds before retrying...")
-                time.sleep(wait_time)
+            print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
+            response = requests.post(endpoint, json=payload, timeout=45)
+            res_json = response.json()
+            
+            if response.status_code == 200:
+                text = res_json['candidates'][0]['content']['parts'][0]['text']
+                return text
             else:
-                time.sleep(5)
-                
-    raise Exception("❌ Gemini API failed after multiple attempts.")
+                err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+                if response.status_code in [503, 429]:
+                    delay = wait_times[attempt - 1]
+                    print(f"⏳ Quota Exceeded/Rate Limited. Waiting {delay} seconds...")
+                    time.sleep(delay)
+                else:
+                    break
+        except Exception as e:
+            print(f"⚠️ Exception: {e}")
+            time.sleep(5)
+
+    raise Exception("❌ Gemini API failed after retries.")
