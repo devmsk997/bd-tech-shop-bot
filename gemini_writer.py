@@ -9,10 +9,10 @@ client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
-# জেমিনাই এর বর্তমান সক্রিয় ও আপডেট করা মডেলের তালিকা
+# জেমিনাই এর বর্তমান সঠিক ও সক্রিয় মডেলের তালিকা
 MODELS = [
     "gemini-3.6-flash",
-    "gemini-3.5-flash-lite"
+    "gemini-2.5-flash"
 ]
 
 MAX_RETRY = 5
@@ -56,7 +56,7 @@ LABELS:
 ৩-৫টি label comma দিয়ে লিখুন।
 
 CONTENT:
-এর পরে HTML format-এ সম্পূর্ণ article লিখুন।
+এর পরে HTML format-এ সম্পূর্ণ article লিখবেন।
 
 Rules:
 - বাংলা ভাষায় লিখুন
@@ -64,6 +64,7 @@ Rules:
 - 1500+ শব্দ
 - SEO friendly করুন
 - H2, H3 heading ব্যবহার করুন
+- কোনো স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না। বোল্ড বা হেডিং বোঝাতে <h2>, <h3>, <b> ট্যাগ ব্যবহার করবেন।
 - প্রোডাক্টের সুবিধা, অসুবিধা (Pros & Cons), ফিচার এবং দামের ধারণা দিন
 - FAQ section যোগ করুন
 - Conclusion যোগ করুন
