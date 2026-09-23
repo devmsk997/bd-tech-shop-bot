@@ -3,6 +3,7 @@ import json
 import random
 import time
 import requests
+import base64
 from google import genai
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -22,27 +23,21 @@ AFFILIATE_TAG = "?ref=379372"
 
 client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
-def upload_image_to_imgur(image_url):
-    """BDStall er image download kore Imgur-e re-upload kore permanent direct link toiri kora"""
+def get_image_base64_or_clean_url(image_url):
+    """BDStall এর ছবি সরাসরি ডাউনলোড করে Base64 ডাটা ফরম্যাটে রূপান্তর করার ফাংশন (যেন কখনো ছবি মিস না হয়)"""
     if not image_url:
         return None
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        img_data = requests.get(image_url, headers=headers, timeout=15).content
-        
-        response = requests.post(
-            'https://api.imgur.com/3/image',
-            headers={'Authorization': 'Client-ID 1c8c8eb258163f9'},
-            files={'image': img_data}
-        )
+        response = requests.get(image_url, headers=headers, timeout=15)
         if response.status_code == 200:
-            direct_link = response.json()['data']['link']
-            print(f"✅ Image successfully re-uploaded to Imgur: {direct_link}")
-            return direct_link
+            encoded_string = base64.b64encode(response.content).decode('utf-8')
+            mime_type = response.headers.get('Content-Type', 'image/jpeg')
+            return f"data:{mime_type};base64,{encoded_string}"
     except Exception as e:
-        print(f"⚠️ Image Upload Failed: {e}")
+        print(f"⚠️ Direct Image Base64 Processing Failed: {e}")
     return image_url
 
 def get_blogger_service():
@@ -76,7 +71,6 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # বর্তমান অফিশিয়াল সাপোর্টেড ভার্সন ব্যবহার করা হচ্ছে
     model_name = "gemini-3.6-flash"
     
     try:
@@ -131,23 +125,23 @@ def main():
         elif not raw_image_url.startswith('http'):
             raw_image_url = 'https://www.bdstall.com/' + raw_image_url.lstrip('/')
             
-    image_url = upload_image_to_imgur(raw_image_url)
+    # ছবি সরাসরি বাইনারি ডাটা থেকে Base64 ইমেজে রূপান্তর
+    processed_image = get_image_base64_or_clean_url(raw_image_url)
     
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
     print(f"📦 Product Found: {title}")
-    print(f"🖼️ Working Image URL: {image_url}")
+    print(f"🖼️ Original Image URL: {raw_image_url}")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
     review_html = generate_seo_review(title)
     
+    # HTML-এ সরাসরি ইমবেড ছবি
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
-        <a href="{image_url}" style="margin-left: 1em; margin-right: 1em;">
-            <img border="0" src="{image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
-        </a>
+        <img border="0" src="{processed_image}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
     </div>
-    """ if image_url else ''
+    """ if processed_image else ''
     
     cta_button = f"""
     <div style="text-align: center; margin: 30px 0;">
