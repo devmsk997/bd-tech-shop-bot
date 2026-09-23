@@ -15,8 +15,8 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ২. ইমেজ ও অ্যাফিলিয়েট লিঙ্ক প্রসেস
-    working_image_url = get_working_image_url(raw_image_url)
+    # ২. ইমেজ ও অ্যাফিলিয়েট লিঙ্ক প্রসেস (এখানে title pass kora hoyeche jate smart image match kore)
+    working_image_url = get_working_image_url(raw_image_url, title)
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
     print(f"📦 Product Found: {title}")
