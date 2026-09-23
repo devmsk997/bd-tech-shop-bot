@@ -24,5 +24,11 @@ def publish_to_blogger(title, formatted_content, labels=["Tech Review", "BDStall
         "content": formatted_content,
         "labels": labels
     }
-    res = blogger_service.posts().insert(blogId=BLOG_ID, body=body, isDraft=False).execute()
+    # isDraft=False দিয়ে সরাসরি পাবলিশ নিশ্চিত করা হচ্ছে
+    res = blogger_service.posts().insert(
+        blogId=BLOG_ID, 
+        body=body, 
+        isDraft=False
+    ).execute()
+    
     return res.get('url')
