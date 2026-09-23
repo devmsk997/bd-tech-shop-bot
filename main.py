@@ -55,7 +55,7 @@ def get_blogger_service():
 
 @retry(
     stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=3, min=10, max=60),
+    wait=wait_exponential(multiplier=5, min=15, max=90),
     reraise=True
 )
 def generate_seo_review(title):
@@ -76,22 +76,20 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    # একাধিক মডেল দিয়ে চেষ্টা করা হবে যেন একটি কোটা শেষ হলেও অন্যটিতে কাজ করে
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
+    # বর্তমান অফিশিয়াল সাপোর্টেড ভার্সন ব্যবহার করা হচ্ছে
+    model_name = "gemini-3.6-flash"
     
-    for model_name in models_to_try:
-        try:
-            chat = client.chats.create(model=model_name)
-            response = chat.send_message(prompt)
-            return response.text
-        except Exception as e:
-            err_msg = str(e)
-            print(f"⚠️ Model {model_name} failed ({err_msg}). Switching to next model...")
-            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-                time.sleep(15)  # ৪২৯ এরর আসলে ১৫ সেকেন্ড অপেক্ষা করবে
-            continue
-            
-    raise Exception("All Gemini models failed to process the request due to quota limit or availability.")
+    try:
+        chat = client.chats.create(model=model_name)
+        response = chat.send_message(prompt)
+        return response.text
+    except Exception as e:
+        err_msg = str(e)
+        print(f"⚠️ API Request error: {err_msg}")
+        if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+            print("⏳ API Free Tier Quota Exceeded. Pausing for 30 seconds before retry...")
+            time.sleep(30)
+        raise e
 
 def post_to_facebook(title, product_url):
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
