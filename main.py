@@ -26,11 +26,11 @@ def main():
     # ৩. কন্টেন্ট তৈরি (Gemini API)
     review_html = generate_seo_review(title)
     
-    # ৪. HTML লেআউট তৈরি
+    # ৪. ব্লগার স্ট্যান্ডার্ড ফিচারড ইমেজ লেআউট তৈরি
     featured_img_tag = f"""
-    <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
-        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored">
-            <img border="0" src="{working_image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
+    <div class="separator" style="clear: both; text-align: center; margin-top: 10px; margin-bottom: 25px;">
+        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="margin-left: 1em; margin-right: 1em;">
+            <img border="0" data-original-height="800" data-original-width="800" src="{working_image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
         </a>
     </div>
     """ if working_image_url else ''
