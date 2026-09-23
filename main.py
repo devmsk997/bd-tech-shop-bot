@@ -13,10 +13,15 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 BLOG_ID = os.environ.get("BLOG_ID")
 CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 TOKEN_JSON = os.environ.get("GOOGLE_TOKEN_JSON")
-FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
-FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 AFFILIATE_TAG = "?ref=379372"
+
+def get_caching_cdn_image_url(image_url):
+    """BDStall এর সরাসরি ছবি ব্লক বাইপাস করার জন্য CDN লিঙ্ক"""
+    if not image_url:
+        return None
+    encoded_url = urllib.parse.quote(image_url, safe='')
+    return f"https://wsrv.nl/?url={encoded_url}&output=jpg&n=-1"
 
 def get_blogger_service():
     token_data = json.loads(TOKEN_JSON)
@@ -28,17 +33,17 @@ def get_blogger_service():
 
 def generate_seo_review(title):
     prompt = f"""
-    আপনি একজন SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য সংক্ষিপ্ত ও আকর্ষণীয় রিভিউ পোস্ট লিখুন।
-    প্রোডাক্ট: {title}
+    আপনি একজন SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি সংক্ষিপ্ত ও আকর্ষণীয় রিভিউ পোস্ট লিখুন।
+    প্রোডাক্টের নাম: {title}
     
-    নিয়মাবলী:
-    ১. কোনো স্টার (*) বা হ্যাশ (#) ব্যবহার করবেন না।
+    গুরুত্বপূর্ণ নিয়মাবলী:
+    ১. কোনো অবস্থাতেই স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না।
     ২. ফরম্যাটিংয়ের জন্য কেবল HTML ট্যাগ (<h2>, <h3>, <b>, <ul>, <li>) ব্যবহার করুন।
-    ৩. সেকশনসমূহ:
-       - <h2>{title} এর স্পেসিফিকেশন</h2>
+    ৩. নিচের সেকশনগুলো সাজিয়ে লিখুন:
+       - <h2>{title} এর বিস্তারিত স্পেসিফিকেশন</h2>
        - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
-       - <h2>বাংলাদেশে {title} এর দাম</h2>
-       - <h2>আমাদের মতামত</h2>
+       - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থা</h2>
+       - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
     payload = {
@@ -53,7 +58,7 @@ def generate_seo_review(title):
     for attempt in range(1, 4):
         try:
             print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            response = requests.post(endpoint, json=payload, timeout=30)
+            response = requests.post(endpoint, json=payload, timeout=35)
             res_json = response.json()
             
             if response.status_code == 200:
@@ -76,38 +81,6 @@ def generate_seo_review(title):
 
     raise Exception("❌ Gemini API failed to return response.")
 
-def post_to_facebook(title, product_url):
-    """Facebook Page Auto Post System"""
-    if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
-        print("⚠️ Facebook Credentials missing in GitHub Secrets. Skipping FB Post.")
-        return
-
-    url = f"https://graph.facebook.com/v18.0/{FB_PAGE_ID}/feed"
-    
-    message = (
-        f"🔥 New Tech Product Review!\n\n"
-        f"📌 {title}\n\n"
-        f"👉 আমাদের ব্লগে বিস্তারিত রিভিউ এবং অরিজিনাল দাম দেখে নিন:\n{product_url}\n\n"
-        f"👤 Post Managed By: Md Solayman\n"
-        f"🔗 Profile: https://www.facebook.com/MdSolayman996/"
-    )
-    
-    payload = {
-        'message': message,
-        'link': product_url,
-        'access_token': FB_ACCESS_TOKEN
-    }
-    
-    try:
-        response = requests.post(url, data=payload, timeout=12)
-        res_data = response.json()
-        if response.status_code == 200 and 'id' in res_data:
-            print(f"✅ Successfully posted to Facebook Page! Post ID: {res_data['id']}")
-        else:
-            print(f"❌ Facebook Post Failed: {res_data}")
-    except Exception as e:
-        print(f"⚠️ Error posting to Facebook: {e}")
-
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
     
@@ -116,7 +89,6 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ইমেজ লিঙ্ক প্রসেসিং (Direct Image CDN Fix)
     if raw_image_url:
         if raw_image_url.startswith('//'):
             raw_image_url = 'https:' + raw_image_url
@@ -125,10 +97,7 @@ def main():
         elif not raw_image_url.startswith('http'):
             raw_image_url = 'https://www.bdstall.com/' + raw_image_url.lstrip('/')
             
-        # Blogger Hotlink Bypass Image Service
-        working_image_url = f"https://images.weserv.nl/?url={urllib.parse.quote(raw_image_url)}&w=600&output=jpg"
-    else:
-        working_image_url = ""
+    working_image_url = get_caching_cdn_image_url(raw_image_url)
     
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
@@ -165,9 +134,6 @@ def main():
     res = blogger_service.posts().insert(blogId=BLOG_ID, body=body, isDraft=False).execute()
     blog_post_url = res.get('url')
     print(f"✅ Successfully Published to Blogger: {blog_post_url}")
-
-    # ফেসবুক পেজে অটো-পোস্ট
-    post_to_facebook(title, blog_post_url)
 
 if __name__ == "__main__":
     main()
