@@ -24,13 +24,11 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 def get_caching_cdn_image_url(image_url):
     """
-    BDStall hotlink block bypass system.
-    Directly converts BDStall image URL into wsrv.nl CDN proxy URL with proper URL encoding.
+    BDStall hotlink block bypass system using wsrv.nl CDN.
     """
     if not image_url:
         return None
     
-    # URL সঠিকভাবে এনকোড করা হচ্ছে যাতে CDN সার্ভার সঠিক ইমেজ খুঁজে পায়
     encoded_url = urllib.parse.quote(image_url, safe='')
     return f"https://wsrv.nl/?url={encoded_url}&output=jpg&n=-1"
 
@@ -43,8 +41,8 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=2, min=10, max=60),
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=2, min=5, max=60),
     reraise=True
 )
 def generate_seo_review(title):
@@ -65,7 +63,8 @@ def generate_seo_review(title):
        - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
     
-    models_to_try = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
+    # সাপোর্ট করা সক্রিয় মডেলসমূহ
+    models_to_try = ["gemini-3.6-flash", "gemini-3.1-pro-preview"]
     last_error = None
 
     for model_name in models_to_try:
@@ -73,31 +72,39 @@ def generate_seo_review(title):
             print(f"🤖 Requesting content generation using model: {model_name}")
             chat = client.chats.create(model=model_name)
             response = chat.send_message(prompt)
-            return response.text
+            if response and response.text:
+                return response.text
         except Exception as e:
             err_msg = str(e)
             last_error = e
             print(f"⚠️ API Request error for {model_name}: {err_msg}")
             
-            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
-                print("⏳ Quota Limit reached. Trying next model...")
-                time.sleep(5)
-            elif "503" in err_msg or "UNAVAILABLE" in err_msg:
-                print("⏳ Google API Busy. Waiting 10 seconds...")
+            # Rate limit বা High demand থাকলে ১০ সেকেন্ড অপেক্ষা করে পরের মডেলে যাবে
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "503" in err_msg:
+                print("⏳ Quota / Server limit reached. Waiting 10 seconds before retrying...")
                 time.sleep(10)
             continue
 
     if last_error:
         raise last_error
 
-def post_to_facebook(title, product_url):
+def post_to_facebook(title, product_url, image_url):
+    """
+    Facebook Page Graph API-তে লিংক পোস্ট করার ফাংশন।
+    """
     if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
         print("⚠️ Facebook Credentials missing in GitHub Secrets. Skipping FB Post.")
         return
 
     url = f"https://graph.facebook.com/v18.0/{FB_PAGE_ID}/feed"
     
-    message = f"🔥 New Tech Product Review!\n\n📌 {title}\n\n👉 আমাদের ব্লগে বিস্তারিত রিভিউ এবং অরিজিনাল দাম দেখে নিন:\n{product_url}\n\n👤 Post Managed By: Md Solayman\n🔗 Profile: https://www.facebook.com/MdSolayman996/"
+    message = (
+        f"🔥 New Tech Product Review!\n\n"
+        f"📌 {title}\n\n"
+        f"👉 আমাদের ব্লগে বিস্তারিত রিভিউ এবং অরিজিনাল দাম দেখে নিন:\n{product_url}\n\n"
+        f"👤 Post Managed By: Md Solayman\n"
+        f"🔗 Profile: https://www.facebook.com/MdSolayman996/"
+    )
     
     payload = {
         'message': message,
@@ -106,11 +113,12 @@ def post_to_facebook(title, product_url):
     }
     
     try:
-        response = requests.post(url, data=payload)
-        if response.status_code == 200:
-            print("✅ Successfully posted to Facebook Page!")
+        response = requests.post(url, data=payload, timeout=15)
+        res_data = response.json()
+        if response.status_code == 200 and 'id' in res_data:
+            print(f"✅ Successfully posted to Facebook Page! Post ID: {res_data['id']}")
         else:
-            print(f"❌ Facebook Post Failed: {response.text}")
+            print(f"❌ Facebook Post Failed: {res_data}")
     except Exception as e:
         print(f"⚠️ Error posting to Facebook: {e}")
 
@@ -122,7 +130,7 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ইমেজ URL ফরম্যাটিং ঠিক করা
+    # ইমেজ URL ফরম্যাটিং
     if raw_image_url:
         if raw_image_url.startswith('//'):
             raw_image_url = 'https:' + raw_image_url
@@ -141,7 +149,6 @@ def main():
     
     review_html = generate_seo_review(title)
     
-    # Blogger এর জন্য স্ট্যান্ডার্ড HTML Image Tag
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-bottom: 25px;">
         <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored">
@@ -170,7 +177,8 @@ def main():
     blog_post_url = res.get('url')
     print(f"✅ Successfully Published to Blogger: {blog_post_url}")
 
-    post_to_facebook(title, blog_post_url)
+    # ফেসবুক পেজে পোস্ট করা
+    post_to_facebook(title, blog_post_url, working_image_url)
 
 if __name__ == "__main__":
     main()
