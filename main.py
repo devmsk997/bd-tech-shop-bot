@@ -15,21 +15,21 @@ def main():
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ২. ইমেজ প্রসেসিং (ImgBB হোস্টিং)
+    # ২. ইমেজ প্রসেসিং
     working_image_url = get_working_image_url(raw_image_url)
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
     print(f"📦 Product Found: {title}")
-    print(f"🖼️ Final Image URL: {working_image_url}")
+    print(f"🖼️ Working Image URL: {working_image_url}")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
     # ৩. কন্টেন্ট তৈরি (Gemini API)
     review_html = generate_seo_review(title)
     
-    # ৪. ব্লগার ফিচারড ইমেজ লেআউট
+    # ৪. ব্লগার ফিচারড ইমেজ নেটিভ স্ট্রাকচার
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-top: 10px; margin-bottom: 25px;">
-        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="margin-left: 1em; margin-right: 1em;">
+        <a href="{working_image_url}" imageanchor="1" style="margin-left: 1em; margin-right: 1em;">
             <img border="0" data-original-height="800" data-original-width="800" src="{working_image_url}" alt="{title}" title="{title}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" />
         </a>
     </div>
