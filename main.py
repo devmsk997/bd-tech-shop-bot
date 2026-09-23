@@ -59,14 +59,13 @@ def generate_seo_review(title):
     ৬. কন্টেন্টটি সার্চ ইঞ্জিনে র‍্যাঙ্ক করার উপযোগী বিস্তারিত তথ্যে সমৃদ্ধ করুন।
     """
     
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    # গুগল এপিআই এর বর্তমান লেটেস্ট অফিশিয়াল মডেল
+    models_to_try = ["gemini-3.6-flash"]
     
     for model_name in models_to_try:
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt
-            )
+            chat = client.chats.create(model=model_name)
+            response = chat.send_message(prompt)
             return response.text
         except Exception as e:
             print(f"⚠️ Model {model_name} failed ({e}). Switching to next model...")
