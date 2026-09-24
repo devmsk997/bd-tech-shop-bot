@@ -16,31 +16,36 @@ def load_posts():
 def clean_text(text):
     if not text:
         return ""
+    # অপ্রয়োজনীয় শব্দ, হাইফেন বা স্পেশাল ক্যারেক্টার দূর করে শুধু মূল শব্দগুলো রাখা
     return (
         text
         .lower()
+        .replace("price in bangladesh", "")
+        .replace("review 2026", "")
+        .replace("price", "")
+        .replace("review", "")
+        .replace("-", " ")
+        .replace("|", " ")
         .replace("\n", " ")
-        .replace("<", " ")
-        .replace(">", " ")
+        .strip()
     )
 
 def check_duplicate(title, content=""):
     posts = load_posts()
-    new_text = clean_text(title + " " + content)
+    cleaned_new_title = clean_text(title)
 
     for post in posts:
         old_title = post.get("title", "")
-        old_text = clean_text(old_title)
+        cleaned_old_title = clean_text(old_title)
 
-        # ওভারঅল টেক্সট এবং শুধু টাইটেলের মিল চেক করা
-        similarity = SequenceMatcher(None, new_text, old_text).ratio()
-        title_similarity = SequenceMatcher(None, clean_text(title), old_text).ratio()
+        # শুধু টাইটেলের মধ্যে মিল কতটুকু তা মাপা
+        title_similarity = SequenceMatcher(None, cleaned_new_title, cleaned_old_title).ratio()
 
-        # যদি সিমিলারিটি ৭০% এর বেশি হয়, তবে ডুপ্লিকেট হিসেবে ধরবে
-        if similarity > 0.70 or title_similarity > 0.85:
+        # যদি টাইটেলের মিল ৬০% বা তার বেশি হয়, তবে ডুপ্লিকেট হিসেবে ধরবে (যাতে একই ফোনের অন্য কোনো রিভিউ ডাবল পোস্ট না হয়)
+        if title_similarity > 0.60:
             return {
                 "duplicate": True,
-                "similarity": round(max(similarity, title_similarity) * 100, 2)
+                "similarity": round(title_similarity * 100, 2)
             }
 
     return {
