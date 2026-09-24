@@ -53,23 +53,28 @@ def post_to_facebook(title, blog_url, image_url):
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
     
-    # একাধিকবার চেষ্টা করে সম্পূর্ণ ইউনিক (নতুন) প্রোডাক্ট খোঁজা
+    # শতভাগ ইউনিক এবং লেটেস্ট প্রোডাক্ট খোঁজার জন্য উন্নত লুপ (সর্বোচ্চ ১০ বার চেষ্টা করবে)
     product_data = None
-    for attempt in range(5):
+    for attempt in range(1, 11):
         temp_product = get_high_search_product()
+        if not temp_product or 'title' not in temp_product:
+            continue
+            
         temp_title = temp_product['title']
         
         # ডুপ্লিকেট চেক করা
         dup_check = check_duplicate(temp_title, "")
         if not dup_check["duplicate"]:
             product_data = temp_product
+            print(f"✨ ইউনিক প্রোডাক্ট পাওয়া গেছে (চেষ্টা {attempt}): {temp_title}")
             break
         else:
-            print(f"🔄 Duplicate found for '{temp_title}' ({dup_check['similarity']}% match). Trying another...")
+            print(f"🔄 ডুপ্লিকেট পাওয়া গেছে '{temp_title}' ({dup_check['similarity']}% মিল)। অন্য প্রোডাক্ট খোঁজা হচ্ছে...")
 
-    # যদি ৫ বার চেষ্টার পরও ইউনিক না পাওয়া যায়, তবে শেষটিই নিয়ে নেবে
+    # যদি ১০ বার চেষ্টার পরও শতভাগ ইউনিক না পাওয়া যায়, তবে আগের কোডের মতো জোর করে না চালিয়ে সেফলি প্রসেস বন্ধ করবে যাতে ডুপ্লিকেট পোস্ট না হয়
     if not product_data:
-        product_data = get_high_search_product()
+        print("❌ দুঃখিত, বর্তমানে কোনো নতুন ইউনিক প্রোডাক্ট পাওয়া যায়নি। ডুপ্লিকেট এড়াতে আজকের পোস্ট বাতিল করা হলো।")
+        return
 
     title = product_data['title']
     raw_url = product_data['url']
@@ -79,7 +84,7 @@ def main():
     working_image_url = get_working_image_url(raw_image_url, title)
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
-    print(f"📦 Selected Unique Product: {title}")
+    print(gz := f"📦 Selected Unique Product: {title}")
     print(f"🖼️ Working Image URL: {working_image_url[:60]}...")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
@@ -109,7 +114,7 @@ def main():
     if blog_post_url:
         print(f"✅ Successfully Published to Blogger: {blog_post_url}")
         
-        # সফলভাবে পোস্ট হওয়ার পর লোকাল JSON ফাইলে রেকর্ড সেভ করা (যাতে ভবিষ্যতে ডুপ্লিকেট না হয়)
+        # সফলভাবে পোস্ট হওয়ার পর লোকাল JSON ফাইলে রেকর্ড সেভ করা (যাতে ভবিষ্যতে ডুপ্লিকেট না হয়)
         save_post(title, blog_post_url, "মোবাইল ও গ্যাজেট")
         
         # ফেসবুক পেজে অটো-পোস্ট করা
