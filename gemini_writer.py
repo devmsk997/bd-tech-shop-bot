@@ -1,48 +1,62 @@
 import os
 import time
-from google import genai
-from optimize_seo import optimize_seo
+import requests
+import re
 
-def generate_seo_review(title, category="Tech"):
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("❌ GEMINI_API_KEY is missing in environment variables!")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-    # Google GenAI ক্লায়েন্ট ইনিশিয়ালাইজ করা
-    client = genai.Client(api_key=api_key)
-
+def generate_seo_review(title):
     prompt = f"""
-Create a comprehensive, highly engaging SEO-optimized product review in Bengali for: "{title}".
-Write in professional markdown / HTML format (suitable for Blogger). 
-Ensure the content includes an introduction, key specifications/features, pros and cons, why you should buy it, and a conclusion.
-Make sure to use <h2> and <h3> tags for subheadings.
-"""
-
-    # বর্তমানে কাজ করার মতো সঠিক মডেল আইডি ব্যবহার করা
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro"]
+    আপনি একজন SEO বাংলা টেক ব্লগ রাইটার। নিচের প্রোডাক্টটির জন্য একটি সংক্ষিপ্ত ও আকর্ষণীয় রিভিউ পোস্ট লিখুন।
+    প্রডাক্টের নাম: {title}
     
-    response = None
-    selected_model = ""
+    গুরুত্বপূর্ণ নিয়মাবলী:
+    ১. কোনো অবস্থাতেই স্টার (*) বা হ্যাশ (#) চিহ্ন ব্যবহার করবেন না।
+    ২. ফরম্যাটিংয়ের জন্য কেবল HTML ট্যাগ (<h2>, <h3>, <b>, <ul>, <li>) ব্যবহার করুন।
+    ৩. নিচের সেকশনগুলো সাজিয়ে লিখুন:
+        - <h2>{title} এর বিস্তারিত স্পেসিফিকেশন</h2>
+        - <h2>কেন এই প্রোডাক্টটি কেনা উচিত?</h2>
+        - <h2>বাংলাদেশে {title} এর দাম ও বাজারের অবস্থা</h2>
+        - <h2>আমাদের চূড়ান্ত মতামত</h2>
+    """
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    # স্ট্যাবল v1 এন্ডপয়েন্ট এবং নিশ্চিত মডেল নাম
+    model_name = "gemini-1.5-flash"
+    endpoint = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
 
-    for model_name in models_to_try:
-        for attempt in range(1, 4):
-            try:
-                print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                )
-                if response and response.text:
-                    selected_model = model_name
-                    break
-            except Exception as e:
-                print(f"⚠️ API Error with {model_name}: {e}")
-                time.sleep(5)
-        if response and response.text:
-            break
+    for attempt in range(1, 6):
+        try:
+            print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
+            response = requests.post(endpoint, json=payload, timeout=60)
+            res_json = response.json()
+            
+            if response.status_code == 200:
+                if 'candidates' in res_json and res_json['candidates']:
+                    text = res_json['candidates'][0]['content']['parts'][0]['text']
+                    return text
+                else:
+                    print(f"⚠️ Warning: Response format unexpected: {res_json}")
+            else:
+                err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+                
+                retry_match = re.search(r"Please retry in (\d+\.?\d*)s", err_msg)
+                if retry_match:
+                    wait_seconds = float(retry_match.group(1)) + 3
+                else:
+                    wait_seconds = 20.0
+                
+                print(f"⏳ Waiting for {wait_seconds:.1f} seconds...")
+                time.sleep(wait_seconds)
 
-    if not response or not response.text:
-        raise Exception("❌ Gemini API failed across all available models after retries.")
+        except Exception as e:
+            print(f"⚠️ Exception: {e}. Waiting 10 seconds...")
+            time.sleep(10)
 
-    print(f"✅ Successfully generated content using model: {selected_model}")
-    return response.text
+    raise Exception("❌ Gemini API failed after retries.")
