@@ -26,37 +26,38 @@ def generate_seo_review(title):
         }]
     }
     
-    # স্ট্যাবল v1 এন্ডপয়েন্ট এবং নিশ্চিত মডেল নাম
-    model_name = "gemini-1.5-flash"
-    endpoint = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+    # একাধিক এপিআই ভার্সন এবং মডেলের কম্বিনেশন (যাতে কোনোভাবেই ফেইল না করে)
+    combinations = [
+        ("v1", "gemini-1.5-flash"),
+        ("v1beta", "gemini-1.5-flash"),
+        ("v1", "gemini-1.5-pro"),
+        ("v1beta", "gemini-pro")
+    ]
 
-    for attempt in range(1, 6):
-        try:
-            print(f"🤖 Requesting API using model: {model_name} (Attempt {attempt})...")
-            response = requests.post(endpoint, json=payload, timeout=60)
-            res_json = response.json()
-            
-            if response.status_code == 200:
-                if 'candidates' in res_json and res_json['candidates']:
-                    text = res_json['candidates'][0]['content']['parts'][0]['text']
-                    return text
-                else:
-                    print(f"⚠️ Warning: Response format unexpected: {res_json}")
-            else:
-                err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
-                print(f"⚠️ API Error ({response.status_code}): {err_msg}")
+    for api_version, model_name in combinations:
+        endpoint = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        
+        for attempt in range(1, 3):
+            try:
+                print(f"🤖 Trying API [{api_version}] with Model: {model_name} (Attempt {attempt})...")
+                response = requests.post(endpoint, json=payload, timeout=45)
+                res_json = response.json()
                 
-                retry_match = re.search(r"Please retry in (\d+\.?\d*)s", err_msg)
-                if retry_match:
-                    wait_seconds = float(retry_match.group(1)) + 3
+                if response.status_code == 200:
+                    if 'candidates' in res_json and res_json['candidates']:
+                        text = res_json['candidates'][0]['content']['parts'][0]['text']
+                        print(f"✅ Successfully generated content using {model_name} on {api_version}")
+                        return text
                 else:
-                    wait_seconds = 20.0
-                
-                print(f"⏳ Waiting for {wait_seconds:.1f} seconds...")
-                time.sleep(wait_seconds)
+                    err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
+                    print(f"⚠️ API Error ({response.status_code}) [{model_name}]: {err_msg}")
+                    
+                    # কোটা বা রেট লিমিট ইস্যু হলে একটু অপেক্ষা করা
+                    if "rate limit" in err_msg.lower() or "quota" in err_msg.lower():
+                        time.sleep(15)
+                        
+            except Exception as e:
+                print(f"⚠️ Exception with {model_name}: {e}")
+                time.sleep(5)
 
-        except Exception as e:
-            print(f"⚠️ Exception: {e}. Waiting 10 seconds...")
-            time.sleep(10)
-
-    raise Exception("❌ Gemini API failed after retries.")
+    raise Exception("❌ Gemini API failed across all available models and versions.")
