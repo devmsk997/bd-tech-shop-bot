@@ -26,33 +26,27 @@ def generate_seo_review(title):
         }]
     }
     
-    # একাধিক এপিআই ভার্সন এবং মডেলের কম্বিনেশন (যাতে কোনোভাবেই ফেইল না করে)
-    combinations = [
-        ("v1", "gemini-1.5-flash"),
-        ("v1beta", "gemini-1.5-flash"),
-        ("v1", "gemini-1.5-pro"),
-        ("v1beta", "gemini-pro")
-    ]
+    # বর্তমান সময়ের সচল ও লেটেস্ট মডেলগুলোর তালিকা
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]
 
-    for api_version, model_name in combinations:
-        endpoint = f"https://generativelanguage.googleapis.com/{api_version}/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+    for model_name in models_to_try:
+        endpoint = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
         for attempt in range(1, 3):
             try:
-                print(f"🤖 Trying API [{api_version}] with Model: {model_name} (Attempt {attempt})...")
+                print(f"🤖 Trying Modern Model: {model_name} (Attempt {attempt})...")
                 response = requests.post(endpoint, json=payload, timeout=45)
                 res_json = response.json()
                 
                 if response.status_code == 200:
                     if 'candidates' in res_json and res_json['candidates']:
                         text = res_json['candidates'][0]['content']['parts'][0]['text']
-                        print(f"✅ Successfully generated content using {model_name} on {api_version}")
+                        print(f"✅ Successfully generated content using {model_name}")
                         return text
                 else:
                     err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
                     print(f"⚠️ API Error ({response.status_code}) [{model_name}]: {err_msg}")
                     
-                    # কোটা বা রেট লিমিট ইস্যু হলে একটু অপেক্ষা করা
                     if "rate limit" in err_msg.lower() or "quota" in err_msg.lower():
                         time.sleep(15)
                         
@@ -60,4 +54,4 @@ def generate_seo_review(title):
                 print(f"⚠️ Exception with {model_name}: {e}")
                 time.sleep(5)
 
-    raise Exception("❌ Gemini API failed across all available models and versions.")
+    raise Exception("❌ Gemini API failed. Please check if your API Key has access to Gemini 2.5/2.0 models in Google AI Studio.")
