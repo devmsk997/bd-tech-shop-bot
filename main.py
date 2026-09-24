@@ -4,6 +4,8 @@ from keyword_research import get_high_search_product
 from gemini_writer import generate_seo_review
 from blogger import publish_to_blogger
 from github_image import get_working_image_url
+from duplicate_checker import check_duplicate
+from internal_linker import save_post
 
 AFFILIATE_TAG = "?ref=379372"
 
@@ -29,7 +31,7 @@ def post_to_facebook(title, blog_url, image_url):
 
         # ২. ফেসবুক পেজে পোস্ট পাঠানো
         post_url = f"https://graph.facebook.com/v26.0/{page_id}/feed"
-        message = f"🔥 নতুন রিভিউ: {title}\n\nবিস্তারিত পড়ুন এবং অফারটি দেখতে ক্লিক করুন:\n{blog_url}"
+        message = f"🔥 নতুন রিভিউ: {title}\n\nবিস্তারিত পড়ুন এবং অফারটি দেখতে ক্লিক করুন:\n{blog_url}"
         
         payload = {
             'message': message,
@@ -51,24 +53,40 @@ def post_to_facebook(title, blog_url, image_url):
 def main():
     print("🚀 Blogger Auto-Post Bot Started...")
     
-    # ১. কিওয়ার্ড ও প্রোডাক্ট নির্বাচন
-    product_data = get_high_search_product()
+    # একাধিকবার চেষ্টা করে সম্পূর্ণ ইউনিক (নতুন) প্রোডাক্ট খোঁজা
+    product_data = None
+    for attempt in range(5):
+        temp_product = get_high_search_product()
+        temp_title = temp_product['title']
+        
+        # ডুপ্লিকেট চেক করা
+        dup_check = check_duplicate(temp_title, "")
+        if not dup_check["duplicate"]:
+            product_data = temp_product
+            break
+        else:
+            print(f"🔄 Duplicate found for '{temp_title}' ({dup_check['similarity']}% match). Trying another...")
+
+    # যদি ৫ বার চেষ্টার পরও ইউনিক না পাওয়া যায়, তবে শেষটিই নিয়ে নেবে
+    if not product_data:
+        product_data = get_high_search_product()
+
     title = product_data['title']
     raw_url = product_data['url']
     raw_image_url = product_data['image']
     
-    # ২. ইমেজ ও অ্যাফিলিয়েট লিঙ্ক প্রসেস
+    # ইমেজ ও অ্যাফিলিয়েট লিঙ্ক প্রসেস
     working_image_url = get_working_image_url(raw_image_url, title)
     affiliate_link = raw_url + AFFILIATE_TAG if "?" not in raw_url else raw_url + "&ref=379372"
     
-    print(f"📦 Product Found: {title}")
+    print(f"📦 Selected Unique Product: {title}")
     print(f"🖼️ Working Image URL: {working_image_url[:60]}...")
     print(f"🔗 Affiliate Link: {affiliate_link}")
     
-    # ৩. কন্টেন্ট তৈরি (Gemini API)
+    # কন্টেন্ট তৈরি (Gemini API)
     review_html = generate_seo_review(title)
     
-    # ৪. ব্লগার ফিচারড ইমেজ লেআউট
+    # ব্লগার ফিচারড ইমেজ লেআউট
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-top: 10px; margin-bottom: 25px;">
         <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="margin-left: 1em; margin-right: 1em;">
@@ -85,14 +103,20 @@ def main():
     
     formatted_content = f"{featured_img_tag}\n{review_html}\n<br>\n{cta_button}"
     
-    # ৫. ব্লগারে পোস্ট প্রকাশ
+    # ব্লগারে পোস্ট প্রকাশ
     blog_post_url = publish_to_blogger(title, formatted_content)
-    print(f"✅ Successfully Published to Blogger: {blog_post_url}")
     
-    # ৬. ফেসবুক পেজে অটো-পোস্ট করা
     if blog_post_url:
+        print(f"✅ Successfully Published to Blogger: {blog_post_url}")
+        
+        # সফলভাবে পোস্ট হওয়ার পর লোকাল JSON ফাইলে রেকর্ড সেভ করা (যাতে ভবিষ্যতে ডুপ্লিকেট না হয়)
+        save_post(title, blog_post_url, "মোবাইল ও গ্যাজেট")
+        
+        # ফেসবুক পেজে অটো-পোস্ট করা
         print("📢 Publishing to Facebook Page...")
         post_to_facebook(title, blog_post_url, working_image_url)
+    else:
+        print("❌ Failed to publish post to Blogger.")
 
 if __name__ == "__main__":
     main()
