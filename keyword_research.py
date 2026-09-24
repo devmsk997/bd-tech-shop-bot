@@ -4,19 +4,17 @@ from bs4 import BeautifulSoup
 
 def get_high_search_product():
     """
-    বিডি স্টল (BDStall) থেকে শুধুমাত্র হাই-সার্চ ভলিউম এবং ফাস্ট-সেলিং টেক প্রোডাক্ট ও গ্যাজেট স্ক্র্যাপ করে।
-    যদি লাইভ স্ক্র্যাপিং ফেইল করে, তবে হুবহু পণ্যের ক্যাটাগরির সাথে মিলে যায় এমন সঠিক ছবিসহ ফলব্যাক রিটার্ন করে।
+    সরাসরি বিডিষ্টল (BDStall) থেকে লাইভ হাই-সার্চ এবং ট্রেন্ডিং টেক প্রোডাক্ট ও তাদের আসল ছবি স্ক্র্যাপ করে।
     """
-    # আরও বিস্তৃত টেক ক্যাটাগরি লিংকসমূহ
     target_urls = [
         "https://www.bdstall.com/mobile-phone/",
         "https://www.bdstall.com/smart-watch/",
         "https://www.bdstall.com/gadgets/",
-        "https://www.bdstall.com/sound-system/",
         "https://www.bdstall.com/laptop/",
         "https://www.bdstall.com/headphone/"
     ]
     
+    # র‍্যান্ডমলি একটি ক্যাটাগরি পেজ সিলেক্ট করা যাতে প্রতিবার ভিন্ন ক্যাটাগরি থেকে প্রোডাক্ট আসে
     selected_url = random.choice(target_urls)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -24,11 +22,11 @@ def get_high_search_product():
     }
 
     try:
-        response = requests.get(selected_url, headers=headers, timeout=15)
+        response = requests.get(selected_url, headers=headers, timeout=20)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # সম্ভাব্য সকল প্রোডাক্ট কন্টেইনার ক্লাস
+            # বিডিষ্টলের পেজ থেকে প্রোডাক্ট কার্ডগুলো খুঁজে বের করা
             product_cards = (
                 soup.find_all('div', class_='ref_hot_deal_single') or 
                 soup.find_all('div', class_='product-list') or
@@ -54,6 +52,7 @@ def get_high_search_product():
                     if not product_url.startswith('http'):
                         product_url = "https://www.bdstall.com" + product_url
 
+                    # বিডিষ্টলের আসল প্রোডাক্ট ইমেজ লিংক সংগ্রহ করা
                     img_src = (
                         img_tag.get('data-src') or 
                         img_tag.get('src') or 
@@ -73,57 +72,13 @@ def get_high_search_product():
                         })
 
             if scraped_products:
+                # ডুপ্লিকেট এড়াতে র‍্যান্ডমলি একটি লাইভ প্রোডাক্ট সিলেক্ট করা
                 selected_prod = random.choice(scraped_products)
-                print(f"✅ সফলভাবে লাইভ টেক প্রোডাক্ট ও আসল ছবি পাওয়া গেছে: {selected_prod['title']}")
+                print(f"✅ সফলভাবে বিডিষ্টল থেকে লাইভ প্রোডাক্ট ও আসল ছবি পাওয়া গেছে: {selected_prod['title']}")
                 return selected_prod
 
     except Exception as e:
-        print(f"⚠️ স্ক্র্যাপিং এরর: {e}")
+        print(f"⚠️ লাইভ স্ক্র্যাপিং এরর: {e}")
 
-    # ফলব্যাক তালিকা: প্রতিটি পণ্যের ক্যাটাগরি অনুযায়ী একদম নিখুঁত ও সঠিক ছবিযুক্ত প্রোডাক্ট লিস্ট
-    trending_fallbacks = [
-        {
-            "title": "Xiaomi Redmi Note 13 Pro Plus Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/xiaomi-redmi-note-13-pro-plus-98231/",
-            "image": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "Samsung Galaxy A55 5G Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/samsung-galaxy-a55-98231/",
-            "image": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "Haylou Solar Pro Smartwatch Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/haylou-solar-pro-98231/",
-            "image": "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "Anker Soundcore Life Q30 Headphones Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/anker-soundcore-life-q30-98231/",
-            "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "Apple iPhone 15 Pro Max Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/apple-iphone-15-pro-max-98232/",
-            "image": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "OnePlus Nord CE 4 Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/oneplus-nord-ce-4-98233/",
-            "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "HP Victus 15 Gaming Laptop Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/hp-victus-15-laptop-98234/",
-            "image": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&auto=format&fit=crop&q=60"
-        },
-        {
-            "title": "Realme C67 Price in Bangladesh & Review 2026",
-            "url": "https://www.bdstall.com/details/realme-c67-98235/",
-            "image": "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=800&auto=format&fit=crop&q=60"
-        }
-    ]
-    
-    selected_fallback = random.choice(trending_fallbacks)
-    print(f"⚠️ ট্রেন্ডিং ফলব্যাক থেকে সঠিক ক্যাটাগরির প্রোডাক্ট নেওয়া হয়েছে: {selected_fallback['title']}")
-    return selected_fallback
+    print("⚠️ লাইভ স্ক্র্যাপিং থেকে প্রোডাক্ট পাওয়া যায়নি।")
+    return None
