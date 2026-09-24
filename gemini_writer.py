@@ -26,15 +26,15 @@ def generate_seo_review(title):
         }]
     }
     
-    # বর্তমান সময়ের সচল ও লেটেস্ট মডেলগুলোর তালিকা
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro"]
+    # গুগল এপিআই-এর লেটেস্ট সাজেস্টেড মডেলগুলোর তালিকা
+    models_to_try = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-1.5-flash"]
 
     for model_name in models_to_try:
         endpoint = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
         for attempt in range(1, 3):
             try:
-                print(f"🤖 Trying Modern Model: {model_name} (Attempt {attempt})...")
+                print(f"🤖 Trying Latest Model: {model_name} (Attempt {attempt})...")
                 response = requests.post(endpoint, json=payload, timeout=45)
                 res_json = response.json()
                 
@@ -54,4 +54,4 @@ def generate_seo_review(title):
                 print(f"⚠️ Exception with {model_name}: {e}")
                 time.sleep(5)
 
-    raise Exception("❌ Gemini API failed. Please check if your API Key has access to Gemini 2.5/2.0 models in Google AI Studio.")
+    raise Exception("❌ Gemini API failed. Please check your API Key and model accessibility.")
