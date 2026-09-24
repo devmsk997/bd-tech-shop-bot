@@ -24,18 +24,17 @@ def generate_seo_review(title):
         - <h2>আমাদের চূড়ান্ত মতামত</h2>
     """
 
-    # ফ্রি এবং সচল মডেলগুলোর তালিকা (একটি ফেইল করলে অন্যটি কাজ করবে)
+    # বর্তমান সময়ের সচল ও লেটেস্ট ফ্রি-টিয়ার মডেলগুলোর নির্ভরযোগ্য তালিকা
     free_models = [
-        "gemini-2.5-flash",
-        "gemini-3.6-flash",
-        "gemini-2.5-pro",
-        "gemini-1.5-flash"
+        "gemini-3.8-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.6-flash"
     ]
 
-    # পার্মানেন্ট সমাধানের জন্য ফলব্যাক লুপ (যতক্ষণ না সফল হয়, চেষ্টা চালিয়ে যাবে)
-    for cycle in range(1, 4):  # পুরো লিস্টে সর্বোচ্চ ৩ বার সাইকেল ঘুরে চেষ্টা করবে
+    # ফ্রি ভার্সনে কোনো অবস্থাতেই ফেইল না করার জন্য মাল্টি-সাইকেল ফলব্যাক লুপ
+    for cycle in range(1, 6):
         for model_name in free_models:
-            for attempt in range(1, 3): # প্রতিটি মডেলে ২ বার করে চেষ্টা
+            for attempt in range(1, 3):
                 try:
                     print(f"🤖 ফ্রি মডেল টেস্ট করা হচ্ছে: {model_name} (সাইকেল {cycle}, চেষ্টা {attempt})...")
                     
@@ -45,23 +44,26 @@ def generate_seo_review(title):
                     )
                     
                     if response and response.text:
-                        print(f"✅ সফল! {model_name} মডেল ব্যবহার করে কন্টেন্ট তৈরি করা হয়েছে।")
+                        print(f"✅ সফল! {model_name} মডেল ব্যবহার করে সম্পূর্ণ ফ্রি-তে কন্টেন্ট তৈরি করা হয়েছে।")
                         return response.text
                         
                 except APIError as e:
                     print(f"⚠️ এপিআই এরর - {model_name} (কোড {e.code}): {e.message}")
-                    if e.code == 503 or "high demand" in str(e).lower():
-                        print(f"⏳ সার্ভার ব্যস্ত (503)। ৫ সেকেন্ড অপেক্ষা করে পরবর্তী ধাপে যাওয়া হচ্ছে...")
-                        time.sleep(5)
+                    if e.code == 429:
+                        print(f"⏳ ফ্রি কোটা লিমিট (429) পার হয়েছে। ২০ সেকেন্ড অপেক্ষা করে পরবর্তী ফ্রি মডেলে যাওয়া হচ্ছে...")
+                        time.sleep(20)
+                    elif e.code == 503 or "high demand" in str(e).lower():
+                        print(f"⏳ সার্ভার ব্যস্ত (503)। ৮ সেকেন্ড অপেক্ষা করা হচ্ছে...")
+                        time.sleep(8)
                     else:
-                        time.sleep(2)
+                        time.sleep(3)
                         break 
                 except Exception as e:
                     print(f"⚠️ অপ্রত্যাশিত সমস্যা {model_name} এ: {e}")
-                    time.sleep(2)
+                    time.sleep(3)
                     break
 
-        print(f"🔄 সাইকেল {cycle} সম্পন্ন হয়েছে। পুনরায় চেষ্টা করা হচ্ছে...")
-        time.sleep(5)
+        print(f"🔄 সাইকেল {cycle} সম্পন্ন হয়েছে। পুনরায় ফ্রি মডেলগুলোতে চেষ্টা চালানো হচ্ছে...")
+        time.sleep(10)
 
-    raise Exception("❌ বর্তমানে সমস্ত ফ্রি মডেল অতিরিক্ত ব্যস্ত রয়েছে। দয়া করে কিছুক্ষণ পর আবার গিটহাব অ্যাকশন রান করুন।")
+    raise Exception("❌ বর্তমানে সমস্ত ফ্রি মডেলের কোটা লিমিটেড বা অতিরিক্ত ব্যস্ত রয়েছে। কিছুক্ষণ পর আবার গিটহাব অ্যাকশন রান করুন।")
