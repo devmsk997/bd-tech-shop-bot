@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-import re
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
@@ -26,16 +25,17 @@ def generate_seo_review(title):
         }]
     }
     
-    # গুগল এপিআই-এর লেটেস্ট সাজেস্টেড মডেলগুলোর তালিকা
-    models_to_try = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-1.5-flash"]
+    # বর্তমান সময়ের সচল মডেলগুলোর তালিকা
+    models_to_try = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
 
     for model_name in models_to_try:
         endpoint = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
         
-        for attempt in range(1, 3):
+        # ট্রাফিক বা হাই ডিমান্ড ওভারলোড সামলানোর জন্য চেষ্টার সংখ্যা বাড়িয়ে দেওয়া হলো
+        for attempt in range(1, 4):
             try:
-                print(f"🤖 Trying Latest Model: {model_name} (Attempt {attempt})...")
-                response = requests.post(endpoint, json=payload, timeout=45)
+                print(f"🤖 Trying Model: {model_name} (Attempt {attempt})...")
+                response = requests.post(endpoint, json=payload, timeout=50)
                 res_json = response.json()
                 
                 if response.status_code == 200:
@@ -47,11 +47,16 @@ def generate_seo_review(title):
                     err_msg = res_json.get('error', {}).get('message', 'Unknown Error')
                     print(f"⚠️ API Error ({response.status_code}) [{model_name}]: {err_msg}")
                     
-                    if "rate limit" in err_msg.lower() or "quota" in err_msg.lower():
+                    # যদি সার্ভার ওভারলোড (503) বা হাই ডিমান্ড বা রেট লিমিট হয়, তবে একটু বেশি সময় অপেক্ষা করে আবার ট্রাই করবে
+                    if response.status_code == 503 or "rate limit" in err_msg.lower() or "quota" in err_msg.lower():
+                        print(f"⏳ Server busy or high demand. Waiting 15 seconds before retry...")
                         time.sleep(15)
+                    else:
+                        time.sleep(5)
+                        break # অন্য মডেল ট্রাই করার জন্য লুপ ব্রেক করা
                         
             except Exception as e:
                 print(f"⚠️ Exception with {model_name}: {e}")
                 time.sleep(5)
 
-    raise Exception("❌ Gemini API failed. Please check your API Key and model accessibility.")
+    raise Exception("❌ Gemini API failed due to high demand or network issues. Please try running workflow again.")
