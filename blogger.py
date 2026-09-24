@@ -4,10 +4,11 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 def get_blogger_service():
-    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON") or os.getenv("BLOGGER_CREDENTIALS")
+    # গিটহাব সিক্রেটস থেকে বিভিন্ন নামে থাকা ক্রেডেনশিয়াল চেক করা
+    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON") or os.getenv("GOOGLE_TOKEN_JSON") or os.getenv("BLOGGER_CREDENTIALS")
     
     if not creds_json:
-        raise ValueError("❌ Blogger credentials missing in environment variables!")
+        raise ValueError("❌ ব্লগার এপিআই ক্রেডেনশিয়াল এনভায়রনমেন্ট ভেরিয়েবলে পাওয়া যায়নি!")
 
     try:
         if isinstance(creds_json, str):
@@ -15,19 +16,19 @@ def get_blogger_service():
         else:
             creds_info = creds_json
 
+        # ওঅথ টোকেন ফরম্যাট যাচাই করা
         creds = Credentials.from_authorized_user_info(creds_info)
         service = build('blogger', 'v3', credentials=creds)
         return service
     except Exception as e:
-        raise Exception(f"❌ Failed to create Blogger service: {e}")
+        raise Exception(f"❌ ব্লগার সার্ভিস তৈরি করতে সমস্যা হয়েছে। দয়া করে গিটহাব সিক্রেটসে সঠিক OAuth JSON টোকেন দিন। মূল এরর: {e}")
 
 def publish_to_blogger(title, content):
     service = get_blogger_service()
-    # আপনার গিটহাব সিক্রেটসে থাকা নাম (BLOG_ID) এখানে যুক্ত করা হলো
     blog_id = os.getenv("BLOG_ID") or os.getenv("BLOGGER_BLOG_ID")
     
     if not blog_id:
-        raise ValueError("❌ BLOG_ID is missing in environment variables!")
+        raise ValueError("❌ ব্লগ আইডি (BLOG_ID) এনভায়রনমেন্ট ভেরিয়েবলে পাওয়া যায়নি!")
 
     body = {
         "title": title,
@@ -39,5 +40,5 @@ def publish_to_blogger(title, content):
     response = request.execute()
 
     post_url = response.get('url')
-    print(f"✅ Successfully Published to Blogger! URL: {post_url}")
+    print(f"✅ সফলভাবে ব্লগে পোস্ট পাবলিশ হয়েছে! লিংক: {post_url}")
     return post_url
