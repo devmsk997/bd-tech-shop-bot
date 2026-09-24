@@ -6,7 +6,7 @@ def get_high_search_product():
     """
     বিডি স্টল (BDStall) থেকে শুধুমাত্র হাই-সার্চ ভলিউম এবং ফাস্ট-সেলিং টেক প্রোডাক্ট ও গ্যাজেট স্ক্র্যাপ করে।
     """
-    # যেসব ক্যাটাগরিতে মানুষের সার্চ ও বিক্রির হার সবচেয়ে বেশি
+    # যেসব ক্যাটাগরিতে মানুষের সার্চ ও বিক্রির হার সবচেয়ে বেশি
     target_urls = [
         "https://www.bdstall.com/mobile-phone/",
         "https://www.bdstall.com/smart-watch/",
@@ -25,11 +25,14 @@ def get_high_search_product():
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
+            # একাধিক সম্ভাব্য কন্টেইনার বা কার্ড ক্লাস টার্গেট করা যাতে স্ক্র্যাপিং ফেইল না করে
             product_cards = (
                 soup.find_all('div', class_='ref_hot_deal_single') or 
                 soup.find_all('div', class_='product-list') or
                 soup.find_all('div', class_='col-sm-4') or
-                soup.find_all('div', class_='item-grid')
+                soup.find_all('div', class_='item-grid') or
+                soup.find_all('div', class_='product-item') or
+                soup.find_all('div', class_='box')
             )
 
             scraped_products = []
