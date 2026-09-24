@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 def get_high_search_product():
     """
     বিডি স্টল (BDStall) থেকে শুধুমাত্র হাই-সার্চ ভলিউম এবং ফাস্ট-সেলিং টেক প্রোডাক্ট ও গ্যাজেট স্ক্র্যাপ করে।
+    যদি লাইভ স্ক্র্যাপিং ফেইল করে, তবে হুবহু পণ্যের ক্যাটাগরির সাথে মিলে যায় এমন সঠিক ছবিসহ ফলব্যাক রিটার্ন করে।
     """
     # আরও বিস্তৃত টেক ক্যাটাগরি লিংকসমূহ
     target_urls = [
@@ -73,13 +74,13 @@ def get_high_search_product():
 
             if scraped_products:
                 selected_prod = random.choice(scraped_products)
-                print(f"✅ সফলভাবে লাইভ টেক প্রোডাক্ট পাওয়া গেছে: {selected_prod['title']}")
+                print(f"✅ সফলভাবে লাইভ টেক প্রোডাক্ট ও আসল ছবি পাওয়া গেছে: {selected_prod['title']}")
                 return selected_prod
 
     except Exception as e:
         print(f"⚠️ স্ক্র্যাপিং এরর: {e}")
 
-    # বড় এবং বৈচিত্র্যময় হাই-সার্চ ট্রেন্ডিং গ্যাজেটের ফলব্যাক তালিকা (আলাদা আলাদা ও আকর্ষণীয় ছবিসহ)
+    # ফলব্যাক তালিকা: প্রতিটি পণ্যের ক্যাটাগরি অনুযায়ী একদম নিখুঁত ও সঠিক ছবিযুক্ত প্রোডাক্ট লিস্ট
     trending_fallbacks = [
         {
             "title": "Xiaomi Redmi Note 13 Pro Plus Price in Bangladesh & Review 2026",
@@ -109,7 +110,7 @@ def get_high_search_product():
         {
             "title": "OnePlus Nord CE 4 Price in Bangladesh & Review 2026",
             "url": "https://www.bdstall.com/details/oneplus-nord-ce-4-98233/",
-            "image": "https://images.unsplash.com/photo-1567581935884-3349723552ca?w=800&auto=format&fit=crop&q=60"
+            "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=60"
         },
         {
             "title": "HP Victus 15 Gaming Laptop Price in Bangladesh & Review 2026",
@@ -119,10 +120,10 @@ def get_high_search_product():
         {
             "title": "Realme C67 Price in Bangladesh & Review 2026",
             "url": "https://www.bdstall.com/details/realme-c67-98235/",
-            "image": "https://images.unsplash.com/photo-1533228876829-65c94e7b5025?w=800&auto=format&fit=crop&q=60"
+            "image": "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=800&auto=format&fit=crop&q=60"
         }
     ]
     
     selected_fallback = random.choice(trending_fallbacks)
-    print(f"⚠️ ট্রেন্ডিং ফলব্যাক থেকে প্রোডাক্ট নেওয়া হয়েছে: {selected_fallback['title']}")
+    print(f"⚠️ ট্রেন্ডিং ফলব্যাক থেকে সঠিক ক্যাটাগরির প্রোডাক্ট নেওয়া হয়েছে: {selected_fallback['title']}")
     return selected_fallback
