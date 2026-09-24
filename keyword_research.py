@@ -6,12 +6,14 @@ def get_high_search_product():
     """
     বিডি স্টল (BDStall) থেকে শুধুমাত্র হাই-সার্চ ভলিউম এবং ফাস্ট-সেলিং টেক প্রোডাক্ট ও গ্যাজেট স্ক্র্যাপ করে।
     """
-    # যেসব ক্যাটাগরিতে মানুষের সার্চ ও বিক্রির হার সবচেয়ে বেশি
+    # আরও বিস্তৃত টেক ক্যাটাগরি লিংকসমূহ
     target_urls = [
         "https://www.bdstall.com/mobile-phone/",
         "https://www.bdstall.com/smart-watch/",
         "https://www.bdstall.com/gadgets/",
-        "https://www.bdstall.com/sound-system/"
+        "https://www.bdstall.com/sound-system/",
+        "https://www.bdstall.com/laptop/",
+        "https://www.bdstall.com/headphone/"
     ]
     
     selected_url = random.choice(target_urls)
@@ -25,14 +27,15 @@ def get_high_search_product():
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # একাধিক সম্ভাব্য কন্টেইনার বা কার্ড ক্লাস টার্গেট করা যাতে স্ক্র্যাপিং ফেইল না করে
+            # সম্ভাব্য সকল প্রোডাক্ট কন্টেইনার ক্লাস
             product_cards = (
                 soup.find_all('div', class_='ref_hot_deal_single') or 
                 soup.find_all('div', class_='product-list') or
                 soup.find_all('div', class_='col-sm-4') or
                 soup.find_all('div', class_='item-grid') or
                 soup.find_all('div', class_='product-item') or
-                soup.find_all('div', class_='box')
+                soup.find_all('div', class_='box') or
+                soup.find_all('div', class_='col-md-4')
             )
 
             scraped_products = []
@@ -70,13 +73,13 @@ def get_high_search_product():
 
             if scraped_products:
                 selected_prod = random.choice(scraped_products)
-                print(f"✅ Successfully scraped high-demand product: {selected_prod['title']}")
+                print(f"✅ সফলভাবে লাইভ টেক প্রোডাক্ট পাওয়া গেছে: {selected_prod['title']}")
                 return selected_prod
 
     except Exception as e:
-        print(f"⚠️ Scraping Error: {e}")
+        print(f"⚠️ স্ক্র্যাপিং এরর: {e}")
 
-    # হাই-সার্চ এবং ফাস্ট-সেলিং ট্রেন্ডিং গ্যাজেটের ফলব্যাক তালিকা (যদি লাইভ স্ক্র্যাপিং ফেইল করে)
+    # বড় এবং বৈচিত্র্যময় হাই-সার্চ ট্রেন্ডিং গ্যাজেটের ফলব্যাক তালিকা (যাতে ডুপ্লিকেট না হয়ে নিত্যনতুন প্রোডাক্ট আসে)
     trending_fallbacks = [
         {
             "title": "Xiaomi Redmi Note 13 Pro Plus Price in Bangladesh & Review 2026",
@@ -97,9 +100,29 @@ def get_high_search_product():
             "title": "Anker Soundcore Life Q30 Headphones Price in Bangladesh & Review 2026",
             "url": "https://www.bdstall.com/details/anker-soundcore-life-q30-98231/",
             "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=60"
+        },
+        {
+            "title": "Apple iPhone 15 Pro Max Price in Bangladesh & Review 2026",
+            "url": "https://www.bdstall.com/details/apple-iphone-15-pro-max-98232/",
+            "image": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=60"
+        },
+        {
+            "title": "OnePlus Nord CE 4 Price in Bangladesh & Review 2026",
+            "url": "https://www.bdstall.com/details/oneplus-nord-ce-4-98233/",
+            "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=60"
+        },
+        {
+            "title": "HP Victus 15 Gaming Laptop Price in Bangladesh & Review 2026",
+            "url": "https://www.bdstall.com/details/hp-victus-15-laptop-98234/",
+            "image": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=800&auto=format&fit=crop&q=60"
+        },
+        {
+            "title": "Realme C67 Price in Bangladesh & Review 2026",
+            "url": "https://www.bdstall.com/details/realme-c67-98235/",
+            "image": "https://images.unsplash.com/photo-1565849904461-04a58ad377e0?w=800&auto=format&fit=crop&q=60"
         }
     ]
     
     selected_fallback = random.choice(trending_fallbacks)
-    print(f"⚠️ Using Trending Fast-Selling Fallback: {selected_fallback['title']}")
+    print(f"⚠️ ট্রেন্ডিং ফলব্যাক থেকে প্রোডাক্ট নেওয়া হয়েছে: {selected_fallback['title']}")
     return selected_fallback
