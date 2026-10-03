@@ -102,7 +102,7 @@ def main():
     
     cta_button = f"""
     <div style="text-align: center; margin: 30px 0;">
-        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 বর্তমান দাম জানুন এবং অর্ডার করুন</a>
+        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 আরও জানুন</a>
     </div>
     """
     
@@ -121,7 +121,7 @@ def main():
         print("📢 Publishing to Facebook Page...")
         post_to_facebook(title, blog_post_url, working_image_url)
     else:
-        print("❌ Failed to publish post to Blogger.")
+        print("❌ Failed to publish post to Blবর্তমান দাম জানুন এবং অর্ডার করুনogger.")
 
 if __name__ == "__main__":
     main()
