@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 def get_high_search_product():
     """
     বিডিষ্টল (BDStall) থেকে লাইভ হাই-সার্চ এবং ট্রেন্ডিং টেক প্রোডাক্ট ও তাদের আসল ছবি স্ক্র্যাপ করার উন্নত মেথড।
-    (র্যান্ডম পেজিনেশন যুক্ত করা হয়েছে যাতে প্রতিবার নতুন প্রোডাক্ট পাওয়া যায়)
+    (১ থেকে ১০ পর্যন্ত র্যান্ডম পেজিনেশন যুক্ত করা হয়েছে যাতে প্রতিনিয়ত নতুন ও ইউনিক প্রোডাক্ট পাওয়া যায়)
     """
     target_urls = [
         "https://www.bdstall.com/mobile-phone/",
@@ -17,8 +17,8 @@ def get_high_search_product():
     
     selected_base_url = random.choice(target_urls)
     
-    # র্যান্ডম পেজ সিলেক্ট করা (১ থেকে ৪ এর মধ্যে), যাতে পুরনো প্রোডাক্টের চক্র থেকে বের হওয়া যায়
-    random_page = random.randint(1, 4)
+    # র্যান্ডম পেজ সিলেক্ট করা (১ থেকে ১০ এর মধ্যে)
+    random_page = random.randint(1, 10)
     if random_page == 1:
         selected_url = selected_base_url
     else:
