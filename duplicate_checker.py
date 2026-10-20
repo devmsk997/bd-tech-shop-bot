@@ -16,7 +16,6 @@ def load_posts():
 def clean_text(text):
     if not text:
         return ""
-    # অপ্রয়োজনীয় শব্দ, হাইফেন বা স্পেশাল ক্যারেক্টার দূর করে শুধু মূল শব্দগুলো রাখা
     return (
         text
         .lower()
@@ -30,19 +29,28 @@ def clean_text(text):
         .strip()
     )
 
-def check_duplicate(title, content=""):
+def check_duplicate(title, product_url=""):
     posts = load_posts()
     cleaned_new_title = clean_text(title)
 
     for post in posts:
         old_title = post.get("title", "")
+        old_url = post.get("url", "")
+        
+        # ১. যদি প্রোডাক্টের URL হুবহু মিলে যায়, তবে নিশ্চিতভাবে ডুপ্লিকেট
+        if product_url and old_url and product_url.strip() == old_url.strip():
+            return {
+                "duplicate": True,
+                "similarity": 100.0
+            }
+
         cleaned_old_title = clean_text(old_title)
 
-        # শুধু টাইটেলের মধ্যে মিল কতটুকু তা মাপা
+        # টাইটেলের মিল কতটুকু তা মাপা
         title_similarity = SequenceMatcher(None, cleaned_new_title, cleaned_old_title).ratio()
 
-        # যদি টাইটেলের মিল ৬০% বা তার বেশি হয়, তবে ডুপ্লিকেট হিসেবে ধরবে (যাতে একই ফোনের অন্য কোনো রিভিউ ডাবল পোস্ট না হয়)
-        if title_similarity > 0.60:
+        # থ্রেশহোল্ড ৬০% থেকে বাড়িয়ে ৮৫% করা হয়েছে, যাতে একই ব্র্যান্ডের অন্য মডেলের প্রোডাক্ট ডুপ্লিকেট না ধরে
+        if title_similarity > 0.85:
             return {
                 "duplicate": True,
                 "similarity": round(title_similarity * 100, 2)
