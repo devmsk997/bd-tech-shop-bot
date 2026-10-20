@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 def get_high_search_product():
     """
     বিডিষ্টল (BDStall) থেকে লাইভ হাই-সার্চ এবং ট্রেন্ডিং টেক প্রোডাক্ট ও তাদের আসল ছবি স্ক্র্যাপ করার উন্নত মেথড।
+    (র্যান্ডম পেজিনেশন যুক্ত করা হয়েছে যাতে প্রতিবার নতুন প্রোডাক্ট পাওয়া যায়)
     """
     target_urls = [
         "https://www.bdstall.com/mobile-phone/",
@@ -14,7 +15,15 @@ def get_high_search_product():
         "https://www.bdstall.com/headphone/"
     ]
     
-    selected_url = random.choice(target_urls)
+    selected_base_url = random.choice(target_urls)
+    
+    # র্যান্ডম পেজ সিলেক্ট করা (১ থেকে ৪ এর মধ্যে), যাতে পুরনো প্রোডাক্টের চক্র থেকে বের হওয়া যায়
+    random_page = random.randint(1, 4)
+    if random_page == 1:
+        selected_url = selected_base_url
+    else:
+        selected_url = f"{selected_base_url}?page={random_page}"
+        
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "Referer": "https://www.bdstall.com/",
@@ -33,7 +42,9 @@ def get_high_search_product():
                 href = a_tag['href']
                 # বিডিষ্টলের প্রডাক্ট ডিটেইলস পেজের লিংক প্যাটার্ন চেক করা
                 if '/details/' in href:
-                    img_tag = a_tag.find('img') or a_tag.find_parent().find('img')
+                    parent_elem = a_tag.find_parent()
+                    img_tag = a_tag.find('img') or (parent_elem.find('img') if parent_elem else None)
+                    
                     if img_tag:
                         title = img_tag.get('alt', '').strip() or a_tag.text.strip()
                         if not title or len(title) < 5:
@@ -67,7 +78,7 @@ def get_high_search_product():
                                     "image": img_src
                                 })
 
-            # যদি সরাসরি লিস্ট থেকে পাওয়া না যায়, তবে জেনেরিক কার্ড খুঁজবে
+            # যদি সরাসরি লিস্ট থেকে পাওয়া না যায়, তবে জেনেরিক কার্ড খুঁজবে
             if not scraped_products:
                 cards = soup.find_all(['div', 'li'], class_=lambda x: x and ('product' in x.lower() or 'item' in x.lower() or 'deal' in x.lower()))
                 for card in cards:
@@ -94,12 +105,11 @@ def get_high_search_product():
 
             # ইউনিক ও ডুপ্লিকেট ফিল্টার করার পর একটি প্রোডাক্ট সিলেক্ট করা
             if scraped_products:
-                # ডুপ্লিকেট ডিকশনারি রিমুভ করার জন্য ইউআরএল দিয়ে ইউনিক লিস্ট তৈরি
                 unique_dict = {p['url']: p for p in scraped_products}
                 unique_list = list(unique_dict.values())
                 
                 selected_prod = random.choice(unique_list)
-                print(f"✅ সফলভাবে বিডিষ্টল থেকে লাইভ প্রোডাক্ট ও আসল ছবি পাওয়া গেছে: {selected_prod['title']}")
+                print(f"✅ সফলভাবে বিডিষ্টল থেকে লাইভ প্রোডাক্ট ও আসল ছবি পাওয়া গেছে (Page {random_page}): {selected_prod['title']}")
                 return selected_prod
 
     except Exception as e:
