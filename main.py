@@ -29,7 +29,7 @@ def post_to_facebook(title, blog_url, image_url):
             print("❌ Failed to generate Facebook Access Token.")
             return
 
-        # ২. ফেসবুক পেজে পোস্ট পাঠানো
+        # ২. ফেসবুক পেজে পোস্ট পাঠানো (Graph API v26.0)
         post_url = f"https://graph.facebook.com/v26.0/{page_id}/feed"
         message = f"🔥 নতুন রিভিউ: {title}\n\nবিস্তারিত পড়ুন এবং অফারটি দেখতে ক্লিক করুন:\n{blog_url}"
         
@@ -63,7 +63,7 @@ def main():
         temp_title = temp_product['title']
         temp_url = temp_product.get('url', '')
         
-        # ডুপ্লিকেট চেক করা (টাইটেল এবং প্রোডাক্ট URL উভয়ই পাস করা হলো)
+        # ডুপ্লিকেট চেক করা (টাইটেল এবং প্রোডাক্ট URL উভয়ই পাস করা হলো)
         dup_check = check_duplicate(temp_title, temp_url)
         if not dup_check["duplicate"]:
             product_data = temp_product
@@ -92,6 +92,10 @@ def main():
     # কন্টেন্ট তৈরি (Gemini API)
     review_html = generate_seo_review(title)
     
+    # SEO Meta Description ট্যাগ
+    meta_desc = f"{title} এর বর্তমান দাম, স্পেসিফিকেশন এবং বিস্তারিত রিভিউ জানুন।"
+    seo_meta_tag = f'<meta name="description" content="{meta_desc}">'
+    
     # ব্লগার ফিচারড ইমেজ লেআউট
     featured_img_tag = f"""
     <div class="separator" style="clear: both; text-align: center; margin-top: 10px; margin-bottom: 25px;">
@@ -103,13 +107,13 @@ def main():
     
     cta_button = f"""
     <div style="text-align: center; margin: 30px 0;">
-        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 আরও জানুন</a>
+        <a href="{affiliate_link}" target="_blank" rel="nofollow sponsored" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">🛒 বর্তমান দাম জানুন এবং অর্ডার করুন</a>
     </div>
     """
     
-    formatted_content = f"{featured_img_tag}\n{review_html}\n<br>\n{cta_button}"
+    formatted_content = f"{seo_meta_tag}\n{featured_img_tag}\n{review_html}\n<br>\n{cta_button}"
     
-    # ব্লগারে পোস্ট প্রকাশ
+    # ব্লগারে পোস্ট প্রকাশ (লেবেলসহ)
     blog_post_url = publish_to_blogger(title, formatted_content)
     
     if blog_post_url:
