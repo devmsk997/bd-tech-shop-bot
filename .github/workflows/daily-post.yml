@@ -2,10 +2,10 @@ name: BD TECH SHOP REVIEW
 
 on:
   schedule:
-    - cron: '17 3 * * *'    # Bangladesh Time 9:17 AM (UTC 03:17)
-    - cron: '17 7 * * *'    # Bangladesh Time 1:17 PM (UTC 07:17)
-    - cron: '17 11 * * *'   # Bangladesh Time 5:17 PM (UTC 11:17)
-    - cron: '17 15 * * *'   # Bangladesh Time 9:17 PM (UTC 15:17)
+    - cron: '23 3 * * *'    # Bangladesh Time 9:23 AM (UTC 03:23)
+    - cron: '41 7 * * *'    # Bangladesh Time 1:41 PM (UTC 07:41)
+    - cron: '12 11 * * *'   # Bangladesh Time 5:12 PM (UTC 11:12)
+    - cron: '37 15 * * *'   # Bangladesh Time 9:37 PM (UTC 15:37)
   workflow_dispatch:
 
 permissions:
@@ -47,6 +47,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin main --rebase || true
           git add blog_posts.json posted_topics.json || true
           git commit -m "Auto-update posted records [skip ci]" || true
           git push || true
